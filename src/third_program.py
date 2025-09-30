@@ -4,12 +4,8 @@ import cv2
 video_capture = cv2.VideoCapture(0)
 
 boundaries = [
-    ([17, 15, 100], [50, 56, 200]),
-    ([0, 200, 0], [255, 255, 255]),
-    ([50, 150, 0], [150, 255, 50]),
-    ([86, 31, 4], [220, 88, 50]),
-    ([25, 146, 190], [62, 174, 250]),
-    ([103, 86, 65], [145, 133, 128])
+    ([0, 200, 0], [255, 255, 255]),  # A red
+    ([50, 150, 0], [150, 255, 50]),  # A green
 ]
 
 width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -19,23 +15,28 @@ fps = int(video_capture.get(cv2.CAP_PROP_FPS))
 print(f"width:{width}; height:{height}; fps:{fps}")
 
 
-def coord_in_range(coord):
+def coord_is_in_left(coord):
     x, y = coord
-    if width / 3 < x and x < width * 2 / 3:
-        if height / 3 < y and y < height * 2 / 3:
-            return True
+    if x < width / 3:
+        return True
     return False
 
 
-def coord_on_range(coord):
+def coord_is_in_center(coord):
     x, y = coord
-    if width / 3 == x or x == width * 2 / 3:
-        if height / 3 == y or y == height * 2 / 3:
-            return True
+    if width / 3 <= x and x <= width * 2 / 3:
+        return True
     return False
 
 
-lower, upper = boundaries[2]
+def coord_is_in_right(coord):
+    x, y = coord
+    if width * 2 / 3 < x:
+        return True
+    return False
+
+
+lower, upper = boundaries[1]  # Select the color to be detected
 lower = np.array(lower, dtype="uint8")
 upper = np.array(upper, dtype="uint8")
 
@@ -46,23 +47,39 @@ while True:
 
     mask = cv2.inRange(frame, lower, upper)
     output = cv2.bitwise_and(frame, frame, mask=mask)
-    # show the images
+    # Find all pixels detected in the mask
     coords = cv2.findNonZero(mask)
+    # In case if nothing is detected
     if coords is not None:
+        nb_left = 0
+        nb_center = 0
+        nb_right = 0
         for coord in coords:
-            if coord_in_range(coord[0]):
+            # If the coordinate is in the first (left) third
+            if coord_is_in_left(coord[0]):
+                # Show the coordinate as red
                 output = cv2.circle(output, coord[0], radius=0,
                                     color=(0, 0, 255), thickness=-1)
-    cv2.line(output, (int(width / 3), int(height / 3)),
-             (int(width * 2 / 3), int(height / 3)), (255, 0, 0), 2)
-    cv2.line(output, (int(width / 3), int(height * 2 / 3)),
-             (int(width * 2 / 3), int(height * 2 / 3)), (255, 0, 0), 2)
+                # Add the pixel to the left counter
+                nb_left += 1
+            elif coord_is_in_center(coord[0]):
+                output = cv2.circle(output, coord[0], radius=0,
+                                    color=(0, 255, 0), thickness=-1)
+                nb_center += 1
+            elif coord_is_in_right(coord[0]):
+                output = cv2.circle(output, coord[0], radius=0,
+                                    color=(255, 0, 0), thickness=-1)
+                nb_right += 1
+        # Percentages of mask pixels in a zone of the image
+        print(nb_left/len(coords), nb_center/len(coords), nb_right/len(coords))
 
-    cv2.line(output, (int(width / 3), int(height / 3)),
-             (int(width / 3), int(height * 2 / 3)), (255, 0, 0), 2)
-    cv2.line(output, (int(width * 2 / 3), int(height / 3)),
-             (int(width * 2 / 3), int(height * 2 / 3)), (255, 0, 0), 2)
+    # Visual line, not necessary for computing
+    cv2.line(output, (int(width/3), 0),
+             (int(width/3), height), (255, 0, 0), 2)
+    cv2.line(output, (int(width*2/3), 0),
+             (int(width*2/3), height), (255, 0, 0), 2)
 
+    # Showing images
     cv2.imshow("images", np.hstack([frame, output]))
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
