@@ -12,9 +12,9 @@ boundaries = [
     ([103, 86, 65], [145, 133, 128])
 ]
 
-width = video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)
-height = video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
-fps = video_capture.get(cv2.CAP_PROP_FPS)
+width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+fps = int(video_capture.get(cv2.CAP_PROP_FPS))
 
 print(f"width:{width}; height:{height}; fps:{fps}")
 
@@ -23,6 +23,14 @@ def coord_in_range(coord):
     x, y = coord
     if width / 3 < x and x < width * 2 / 3:
         if height / 3 < y and y < height * 2 / 3:
+            return True
+    return False
+
+
+def coord_on_range(coord):
+    x, y = coord
+    if width / 3 == x or x == width * 2 / 3:
+        if height / 3 == y or y == height * 2 / 3:
             return True
     return False
 
@@ -45,6 +53,15 @@ while True:
             if coord_in_range(coord[0]):
                 output = cv2.circle(output, coord[0], radius=0,
                                     color=(0, 0, 255), thickness=-1)
+    cv2.line(output, (int(width / 3), int(height / 3)),
+             (int(width * 2 / 3), int(height / 3)), (255, 0, 0), 2)
+    cv2.line(output, (int(width / 3), int(height * 2 / 3)),
+             (int(width * 2 / 3), int(height * 2 / 3)), (255, 0, 0), 2)
+
+    cv2.line(output, (int(width / 3), int(height / 3)),
+             (int(width / 3), int(height * 2 / 3)), (255, 0, 0), 2)
+    cv2.line(output, (int(width * 2 / 3), int(height / 3)),
+             (int(width * 2 / 3), int(height * 2 / 3)), (255, 0, 0), 2)
 
     cv2.imshow("images", np.hstack([frame, output]))
 
