@@ -1,11 +1,30 @@
 import numpy as np
 import cv2
+import pypot.dynamixel
+
+ports = pypot.dynamixel.get_available_ports()
+if not ports:
+    MOTOR_USED = False
+    print("Motor not used.")
+else:
+    MOTOR_USED = True
+    print("Motor used.")
+
+if MOTOR_USED:
+    dxl_io = pypot.dynamixel.DxlIO(ports[0])
+    dxl_io.set_wheel_mode([1])
+    STANDARD_SPEED = 360
 
 video_capture = cv2.VideoCapture(0)
 
+# To be encoded in BGR
 boundaries = [
     ([0, 200, 0], [255, 255, 255]),  # A red
     ([50, 150, 0], [150, 255, 50]),  # A green
+    ([100, 170, 150], [150, 220, 200]),  # A yellow tape (to be reworked on)
+    ([190, 100, 0], [255, 200, 100]),  # A blue tape
+    ([150, 90, 70], [180, 120, 100]),  # A brown tape (to be reworked on)
+    ([60, 20, 120], [100, 60, 160]),  # A red tape (to be reworked on)
 ]
 
 width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -36,7 +55,22 @@ def coord_is_in_right(coord):
     return False
 
 
-lower, upper = boundaries[1]  # Select the color to be detected
+color_string = ["A red", "A green", "A yellow tape",
+                "A blue tape", "A brown tape", "A red tape"]
+current_color = 0
+
+
+def next_color():
+    global current_color
+    if current_color < 5:
+        current_color += 1
+    else:
+        current_color = 0
+    print(color_string[current_color])
+    return current_color
+
+
+lower, upper = boundaries[next_color()]  # Select the color to be detected
 lower = np.array(lower, dtype="uint8")
 upper = np.array(upper, dtype="uint8")
 
@@ -50,10 +84,10 @@ while True:
     # Find all pixels detected in the mask
     coords = cv2.findNonZero(mask)
     # In case if nothing is detected
+    nb_left = 0
+    nb_center = 0
+    nb_right = 0
     if coords is not None:
-        nb_left = 0
-        nb_center = 0
-        nb_right = 0
         for coord in coords:
             # If the coordinate is in the first (left) third
             if coord_is_in_left(coord[0]):
@@ -70,8 +104,15 @@ while True:
                 output = cv2.circle(output, coord[0], radius=0,
                                     color=(255, 0, 0), thickness=-1)
                 nb_right += 1
-        # Percentages of mask pixels in a zone of the image
-        print(nb_left/len(coords), nb_center/len(coords), nb_right/len(coords))
+    else:
+        coords = [0]
+    # Percentages of mask pixels in a zone of the image
+    # print(nb_left/len(coords), nb_center/len(coords), nb_right/len(coords))
+    if MOTOR_USED:
+        dxl_io.set_moving_speed(
+            {1: STANDARD_SPEED - nb_left/len(coords)*STANDARD_SPEED})  # Degrees / s
+        dxl_io.set_moving_speed(
+            {2: STANDARD_SPEED - nb_right/len(coords)*STANDARD_SPEED})  # Degrees / s
 
     # Visual line, not necessary for computing
     cv2.line(output, (int(width/3), 0),
@@ -82,8 +123,19 @@ while True:
     # Showing images
     cv2.imshow("images", np.hstack([frame, output]))
 
+    if cv2.waitKey(1) & 0xFE == ord("d"):
+        # Select the color to be detected
+        lower, upper = boundaries[next_color()]
+        lower = np.array(lower, dtype="uint8")
+        upper = np.array(upper, dtype="uint8")
+
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
 video_capture.release()
 cv2.destroyAllWindows()
+if MOTOR_USED:
+    dxl_io.set_moving_speed(
+        {1: 0})  # Degrees / s
+    dxl_io.set_moving_speed(
+        {2: 0})  # Degrees / s
