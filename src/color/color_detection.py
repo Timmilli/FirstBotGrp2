@@ -17,20 +17,9 @@ if MOTOR_USED:
 
 video_capture = cv2.VideoCapture(0)
 
-# To be encoded in BGR
-boundaries = [
-    ([0, 200, 0], [255, 255, 255]),  # A red
-    ([50, 150, 0], [150, 255, 50]),  # A green
-    ([100, 170, 150], [150, 220, 200]),  # A yellow tape (to be reworked on)
-    ([190, 100, 0], [255, 200, 100]),  # A blue tape
-    ([150, 90, 70], [180, 120, 100]),  # A brown tape (to be reworked on)
-    ([60, 20, 120], [100, 60, 160]),  # A red tape (to be reworked on)
-]
-
 width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps = int(video_capture.get(cv2.CAP_PROP_FPS))
-
 print(f"width:{width}; height:{height}; fps:{fps}")
 
 
@@ -55,14 +44,31 @@ def coord_is_in_right(coord):
     return False
 
 
-color_string = ["A red", "A green", "A yellow tape",
-                "A blue tape", "A brown tape", "A red tape"]
+def coord_is_in_brown_rect(coord):
+    x, y = coord
+    if width / 3 < x and x < width * 2 / 3:
+        if height / 3 < y and y < height * 2 / 3:
+            return True
+    return False
+
+
+color_string = ["A yellow tape", "A blue tape", "A red tape"]
 current_color = 0
+
+# To be encoded in BGR
+boundaries = [
+    ([100, 170, 150], [150, 220, 200]),  # A yellow tape (to be reworked on)
+    ([190, 150, 0], [255, 200, 50]),  # A blue tape
+    ([100, 70, 130], [140, 100, 255]),  # A red tape (to be reworked on)
+]
+brown_boundaries = [
+    ([110, 90, 70], [130, 110, 90]),  # A brown tape (to be reworked on)
+]
 
 
 def next_color():
     global current_color
-    if current_color < 5:
+    if current_color < len(boundaries)-1:
         current_color += 1
     else:
         current_color = 0
@@ -70,15 +76,21 @@ def next_color():
     return current_color
 
 
-lower, upper = boundaries[next_color()]  # Select the color to be detected
+lower, upper = boundaries[next_color()]
 lower = np.array(lower, dtype="uint8")
 upper = np.array(upper, dtype="uint8")
+brown_lower, brown_upper = brown_boundaries[0]
+brown_lower = np.array(brown_lower, dtype="uint8")
+brown_upper = np.array(brown_upper, dtype="uint8")
+
+switched = False
 
 while True:
     result, frame = video_capture.read()  # read frames from the video
     if result is False:
         break  # terminate the loop if the frame is not read successfully
 
+    # Mask and output for color to be followed
     mask = cv2.inRange(frame, lower, upper)
     output = cv2.bitwise_and(frame, frame, mask=mask)
     # Find all pixels detected in the mask
@@ -120,14 +132,30 @@ while True:
     cv2.line(output, (int(width*2/3), 0),
              (int(width*2/3), height), (255, 0, 0), 2)
 
+    # Brown tape related mask and output
+    brown_mask = cv2.inRange(frame, brown_lower, brown_upper)
+    brown_output = cv2.bitwise_and(frame, frame, mask=brown_mask)
+    # Find all pixels detected in the mask
+    brown_coords = cv2.findNonZero(brown_mask)
+    cv2.rectangle(brown_output, (int(width/3), int(height/3)),
+                  (int(width*2/3), int(height*2/3)), (255, 0, 0), 2)
+    if brown_coords is not None:
+        for brown_coord in brown_coords:
+            if coord_is_in_brown_rect(brown_coord[0]):
+                brown_output = cv2.circle(brown_output, brown_coord[0], radius=0,
+                                          color=(255, 255, 255), thickness=-1)
+                if not switched:
+                    lower, upper = boundaries[next_color()]
+                    lower = np.array(lower, dtype="uint8")
+                    upper = np.array(upper, dtype="uint8")
+                    switched = True
+
     # Showing images
-    cv2.imshow("images", np.hstack([frame, output]))
+    cv2.imshow("images", np.hstack([frame, output, brown_output]))
 
     if cv2.waitKey(1) & 0xFE == ord("d"):
         # Select the color to be detected
-        lower, upper = boundaries[next_color()]
-        lower = np.array(lower, dtype="uint8")
-        upper = np.array(upper, dtype="uint8")
+        switched = False
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
