@@ -20,21 +20,21 @@ if MOTOR_USED:
 
 def coord_is_in_left(coord):
     x, y = coord
-    if x < width / 3:
+    if y < height / 3:
         return True
     return False
 
 
 def coord_is_in_center(coord):
     x, y = coord
-    if width / 3 <= x and x <= width * 2 / 3:
+    if height / 3 <= y and y <= height * 2 / 3:
         return True
     return False
 
 
 def coord_is_in_right(coord):
     x, y = coord
-    if width * 2 / 3 < x:
+    if height * 2 / 3 < y:
         return True
     return False
 
@@ -48,12 +48,13 @@ print(f"width:{width}; height:{height}; fps:{fps}")
 
 # Coded in HSV
 boundaries = [
-    ([0, 30, 125], [30, 100, 255]),  # A yellow tape
-    ([100, 90, 170], [120, 170, 230]),  # A blue tape
-    ([170, 100, 100], [180, 255, 255]),  # A red tape
-    ([0, 50, 70], [20, 140, 150])  # A maroon tape
+    ([20, 0, 160], [140, 40, 255]),  # A yellow tape
+    ([80, 210, 210], [100, 255, 255]),  # A blue tape
+    ([160, 80, 110], [180, 255, 255]),  # A red tape
+    ([100, 70, 80], [130, 150, 140])  # A maroon tape
 ]
 
+color_string = ["Yellow Tape", "Blue Tape", "Red Tape", "Maroon Tape"]
 current_color = 0
 
 
@@ -63,6 +64,7 @@ def next_color():
         current_color += 1
     else:
         current_color = 0
+    print(color_string[current_color])
     return current_color
 
 
@@ -75,7 +77,7 @@ while True:
     if result is False:
         break  # terminate the loop if the frame is not read successfully
 
-    frame = frame[0:height, int(width/2)-5:int(width/2)+5]
+    # frame = frame[0:height, int(width/2)-5:int(width/2)+5]
 
     hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
@@ -112,7 +114,7 @@ while True:
     else:
         coords = [0]
     # Percentages of mask pixels in a zone of the image
-    print(nb_left/len(coords), nb_center/len(coords), nb_right/len(coords))
+    # print(nb_left/len(coords), nb_center/len(coords), nb_right/len(coords))
     if MOTOR_USED:
         dxl_io.set_moving_speed(
             {2: -(STANDARD_SPEED - nb_left/len(coords)*STANDARD_SPEED)})  # Degrees / s
@@ -121,13 +123,21 @@ while True:
 
     if USE_ON_COMPUT:
         # Visual line, not necessary for computing
-        cv2.line(output, (int(width/3), 0),
-                 (int(width/3), height), (255, 0, 0), 2)
-        cv2.line(output, (int(width*2/3), 0),
-                 (int(width*2/3), height), (255, 0, 0), 2)
+        cv2.line(output, (0, int(height/3)),
+                 (width, int(height/3)), (255, 0, 0), 2)
+        cv2.line(output, (0, int(height*2/3)),
+                 (width, int(height*2/3)), (255, 0, 0), 2)
+
+        cv2.rectangle(output, (int(width/2)-5, 0),
+                      (int(width/2)+5, height), (0, 255, 0), 2)
 
         # Showing images
         cv2.imshow("images", np.hstack([frame, output]))
+
+        if cv2.waitKey(1) & 0xFE == ord("n"):
+            lower, upper = boundaries[next_color()]
+            lower = np.array(lower, dtype="uint8")
+            upper = np.array(upper, dtype="uint8")
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
