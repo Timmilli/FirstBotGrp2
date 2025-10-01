@@ -1,8 +1,12 @@
 import numpy as np
 import cv2
 import pypot.dynamixel
+from simple_pid import PID
 
-ports = pypot.dynamixel.get_available_ports()
+pid = PID(1, 0.1, 0.05, setpoint=0)
+
+# ports = pypot.dynamixel.get_available_ports()
+ports = 0
 if not ports:
     MOTOR_USED = False
     print("Motor not used.")
@@ -54,6 +58,8 @@ lower, upper = boundaries[0]
 lower = np.array(lower, dtype="uint8")
 upper = np.array(upper, dtype="uint8")
 
+speed = 0
+
 while True:
     result, frame = video_capture.read()  # read frames from the video
     if result is False:
@@ -67,35 +73,43 @@ while True:
     # Find all pixels detected in the mask
     coords = cv2.findNonZero(mask)
     # In case if nothing is detected
-    nb_left = 0
+    # nb_left = 0
     nb_center = 0
-    nb_right = 0
+    # nb_right = 0
     if coords is not None:
         for coord in coords:
-            # If the coordinate is in the first (left) third
-            if coord_is_in_left(coord[0]):
-                # Show the coordinate as red
-                #            output = cv2.circle(output, coord[0], radius=0,
-                #                                color=(0, 0, 255), thickness=-1)
-                # Add the pixel to the left counter
-                nb_left += 1
-            elif coord_is_in_center(coord[0]):
-                #            output = cv2.circle(output, coord[0], radius=0,
-                #                                color=(0, 255, 0), thickness=-1)
-                nb_center += 1
-            elif coord_is_in_right(coord[0]):
-                #            output = cv2.circle(output, coord[0], radius=0,
-                #                                color=(255, 0, 0), thickness=-1)
-                nb_right += 1
+            nb_center += coord[0][1]
+            # # If the coordinate is in the first (left) third
+            # if coord_is_in_left(coord[0]):
+            #     # Show the coordinate as red
+            #     #            output = cv2.circle(output, coord[0], radius=0,
+            #     #                                color=(0, 0, 255), thickness=-1)
+            #     # Add the pixel to the left counter
+            #     nb_left += 1
+            # elif coord_is_in_center(coord[0]):
+            #     #            output = cv2.circle(output, coord[0], radius=0,
+            #     #                                color=(0, 255, 0), thickness=-1)
+            #     nb_center += 1
+            # elif coord_is_in_right(coord[0]):
+            #     #            output = cv2.circle(output, coord[0], radius=0,
+            #     #                                color=(255, 0, 0), thickness=-1)
+            #     nb_right += 1
+        speed = pid(-(nb_center/len(coords))/width + 0.5)
+        print(nb_center/len(coords)/width - 0.5, ", speed = ", speed)
+
     else:
         coords = [0]
+        speed = 0
+        print("color not detected, speed = ", speed)
+
     # Percentages of mask pixels in a zone of the image
-    print(nb_left/len(coords), nb_center/len(coords), nb_right/len(coords))
+    
+
     if MOTOR_USED:
         dxl_io.set_moving_speed(
-            {2: -(STANDARD_SPEED - nb_left/len(coords)*STANDARD_SPEED)})  # Degrees / s
+            {2: -(STANDARD_SPEED - speed*STANDARD_SPEED)})  # Degrees / s
         dxl_io.set_moving_speed(
-            {1: STANDARD_SPEED - nb_right/len(coords)*STANDARD_SPEED})  # Degrees / s
+            {1: STANDARD_SPEED - speed*STANDARD_SPEED})  # Degrees / s
 
     # Visual line, not necessary for computing
 #    cv2.line(output, (0, int(height/3)),
