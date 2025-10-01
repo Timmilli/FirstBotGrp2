@@ -112,8 +112,8 @@ def exit_program():
     sys.exit()
 
 
-top_band = 70
-bot_band = 150
+top_band = 400
+bot_band = 410
 
 try:
     speed = 0
@@ -204,9 +204,9 @@ try:
 
         if MOTOR_USED:
             dxl_io.set_moving_speed(
-                {2: -(STANDARD_SPEED + speed*STANDARD_SPEED)})  # Degrees / s
+                {2: (STANDARD_SPEED + speed*STANDARD_SPEED)})  # Degrees / s
             dxl_io.set_moving_speed(
-                {1: STANDARD_SPEED - speed*STANDARD_SPEED})  # Degrees / s
+                {1: -(STANDARD_SPEED - speed*STANDARD_SPEED)})  # Degrees / s   
 
         if COMPUTER_USED:
             # Visual line, not necessary for computing
