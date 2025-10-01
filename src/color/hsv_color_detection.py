@@ -43,27 +43,6 @@ fps = int(video_capture.get(cv2.CAP_PROP_FPS))
 print(f"width:{width}; height:{height}; fps:{fps}")
 
 
-def coord_is_in_left(coord):
-    x, y = coord
-    if y < height / 3:
-        return True
-    return False
-
-
-def coord_is_in_center(coord):
-    x, y = coord
-    if height / 3 <= y and y <= height * 2 / 3:
-        return True
-    return False
-
-
-def coord_is_in_right(coord):
-    x, y = coord
-    if height * 2 / 3 < y:
-        return True
-    return False
-
-
 # Coded in HSV
 # Maroon has to be the last color
 boundaries = [
@@ -85,6 +64,27 @@ def next_color():
         current_color = 0
     print(color_string[current_color])
     return current_color
+
+
+def coord_is_in_left(coord):
+    x, y = coord
+    if y < height / 3:
+        return True
+    return False
+
+
+def coord_is_in_center(coord):
+    x, y = coord
+    if height / 3 <= y and y <= height * 2 / 3:
+        return True
+    return False
+
+
+def coord_is_in_right(coord):
+    x, y = coord
+    if height * 2 / 3 < y:
+        return True
+    return False
 
 
 lower, upper = boundaries[next_color()]
