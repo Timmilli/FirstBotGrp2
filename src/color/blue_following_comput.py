@@ -94,9 +94,9 @@ while True:
     print(nb_left/len(coords), nb_center/len(coords), nb_right/len(coords))
     if MOTOR_USED:
         dxl_io.set_moving_speed(
-            {1: STANDARD_SPEED - nb_left/len(coords)*STANDARD_SPEED})  # Degrees / s
+            {2: -(STANDARD_SPEED - nb_left/len(coords)*STANDARD_SPEED)})  # Degrees / s
         dxl_io.set_moving_speed(
-            {2: -(STANDARD_SPEED - nb_right/len(coords)*STANDARD_SPEED)})  # Degrees / s
+            {1: STANDARD_SPEED - nb_right/len(coords)*STANDARD_SPEED})  # Degrees / s
 
     # Visual line, not necessary for computing
     cv2.line(output, (0, int(height/3)),

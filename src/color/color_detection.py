@@ -59,7 +59,7 @@ current_color = 0
 boundaries = [
     ([100, 170, 150], [150, 220, 200]),  # A yellow tape (to be reworked on)
     ([190, 150, 0], [255, 200, 50]),  # A blue tape
-    ([100, 70, 130], [140, 100, 255]),  # A red tape (to be reworked on)
+    ([140, 70, 130], [100, 100, 255]),  # A red tape (to be reworked on)
 ]
 brown_boundaries = [
     ([110, 90, 70], [130, 110, 90]),  # A brown tape (to be reworked on)
@@ -119,7 +119,7 @@ while True:
     else:
         coords = [0]
     # Percentages of mask pixels in a zone of the image
-    # print(nb_left/len(coords), nb_center/len(coords), nb_right/len(coords))
+    print(nb_left/len(coords), nb_center/len(coords), nb_right/len(coords))
     if MOTOR_USED:
         dxl_io.set_moving_speed(
             {1: STANDARD_SPEED - nb_left/len(coords)*STANDARD_SPEED})  # Degrees / s
