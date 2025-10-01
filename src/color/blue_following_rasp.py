@@ -3,7 +3,7 @@ import cv2
 import pypot.dynamixel
 from simple_pid import PID
 
-pid = PID(1, 0.1, 0.05, setpoint=0)
+pid = PID(4, 0.2, 0.2, setpoint=0)
 
 # ports = pypot.dynamixel.get_available_ports()
 ports = 0
@@ -65,7 +65,7 @@ while True:
     if result is False:
         break  # terminate the loop if the frame is not read successfully
 
-    frame = frame[0:height, int(width/2)-5:int(width/2)+5]
+    frame = frame[0:height, 50:60]
 
     # Mask and output for color to be followed
     mask = cv2.inRange(frame, lower, upper)
@@ -95,19 +95,19 @@ while True:
             #     #                                color=(255, 0, 0), thickness=-1)
             #     nb_right += 1
         speed = pid(-(nb_center/len(coords))/width + 0.5)
-        print(nb_center/len(coords)/width - 0.5, ", speed = ", speed)
+        # print(nb_center/len(coords)/width - 0.5, ", speed = ", speed)
 
     else:
         coords = [0]
         speed = 0
-        print("color not detected, speed = ", speed)
+        # print("color not detected, speed = ", speed)
 
     # Percentages of mask pixels in a zone of the image
     
 
     if MOTOR_USED:
         dxl_io.set_moving_speed(
-            {2: -(STANDARD_SPEED - speed*STANDARD_SPEED)})  # Degrees / s
+            {2: -(STANDARD_SPEED + speed*STANDARD_SPEED)})  # Degrees / s
         dxl_io.set_moving_speed(
             {1: STANDARD_SPEED - speed*STANDARD_SPEED})  # Degrees / s
 
