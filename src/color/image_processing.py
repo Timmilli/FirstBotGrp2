@@ -3,6 +3,7 @@ import cv2
 import pypot.dynamixel
 from simple_pid import PID
 from copy import deepcopy
+from daytime import time
 
 
 def next_color(dico):
@@ -45,7 +46,6 @@ def process_frame_hsv(frame, dico):
     if not dico["COMPUTER_USED"]:
         frame = frame[dico["top_band"]:dico["bot_band"], 0:dico["width"]]
 
-    print(frame.shape)
     # Transform from RGB to HSV
     hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
@@ -66,7 +66,11 @@ def process_frame_hsv(frame, dico):
     nb_center = 0
     # In case if nothing is detected
     color_detected = False
+    bypass = False
     if coords is not None:
+        # print("nb_coords ", len(coords))
+        if {len(coords) > 3500 and dico["current_color"] == 2}:
+            bypass = True
         color_detected = True
         for coord in coords:
             nb_center += coord[0][0]
@@ -137,7 +141,7 @@ def process_frame_hsv(frame, dico):
         dico["lower"] = np.array(dico["lower"], dtype="uint8")
         dico["upper"] = np.array(dico["upper"], dtype="uint8")
 
-    return ((nb_center/len(coords)), color_detected)
+    return ((nb_center/len(coords)), color_detected, bypass)
 
 
 def process_frame_rgb(frame, dico):
