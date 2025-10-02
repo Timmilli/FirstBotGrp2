@@ -6,7 +6,7 @@ from copy import deepcopy
 import argparse
 import sys
 
-from image_processing import process_frame, next_color
+from image_processing import process_frame, next_color, process_frame_hsv, process_frame_rgb
 
 parser = argparse.ArgumentParser(
     prog='Main file',
@@ -19,9 +19,12 @@ parser.add_argument('-b', '--brown_detection', action='store_false',
                     help='Defines if the motors needs to be used.')
 parser.add_argument('-h', '--hsv_used', action='store_false',
                     help='Defines if the HSV is used over the RGB.')
-parser.add_argument('-rgb', '--rgb_used', action='store_false',
-                    help='Defines if the HSV is used over the RGB.')
+# parser.add_argument('-rgb', '--rgb_used', action='store_false',
+#                     help='Defines if the HSV is used over the RGB.')
 
+parser.add_argument('-col', '--color', nargs=1,
+                    default=0, type=int,
+                    help='Defines the color of the line to follow.')
 parser.add_argument('-s', '--speed', nargs=1,
                     default=360, type=float,
                     help='Defines the standard speed of the wheels. Default is 360.')
@@ -32,6 +35,7 @@ MOTOR_USED = args.motor_used
 COMPUTER_USED = args.computer_used
 BROWN_USED = args.brown_detection
 HSV_USED = args.hsv_used
+# RGB_USED = args.rgb_used
 
 # Coded in HSV
 # Maroon has to be the last color
@@ -43,7 +47,12 @@ hsv_boundaries = [
 ]
 # Coded in BGR
 # Maroon has to be the last color
-rgb_boundaries = []
+rgb_boundaries = [
+    ([100, 170, 150], [150, 220, 200]),  # A yellow tape (to be reworked on)
+    ([190, 150, 0], [255, 200, 50]),  # A blue tape
+    ([140, 70, 130], [100, 100, 255]),  # A red tape (to be reworked on)
+    ([110, 90, 70], [130, 110, 90]),  # A brown tape (to be reworked on)
+]
 
 color_string = ["Yellow Tape", "Blue Tape", "Red Tape", "Maroon Tape"]
 current_color = 0
@@ -85,7 +94,7 @@ height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps = int(video_capture.get(cv2.CAP_PROP_FPS))
 print(f"width:{width}; height:{height}; fps:{fps}")
 
-pid = PID(4, 0.2, 0.2, setpoint=0)
+pid = PID(0.5, 0.05, 0.01, setpoint=0)
 
 
 def exit_program():
@@ -109,6 +118,8 @@ try:
         "motor_used": MOTOR_USED,
         "computer_used": COMPUTER_USED,
         "brown_used": BROWN_USED,
+        "hsv_used": HSV_USED,
+        # "rgb_used": RGB_USED,
         "boundaries": boundaries,
         "lower": lower,
         "upper": upper,
@@ -125,10 +136,13 @@ try:
             print("Capture has failed. Exiting...")
             exit_program()
 
-        output, color_detected = process_frame(frame, dico)
+        if HSV_USED:
+            absisse, color_detected = process_frame_hsv(frame, dico)
+        else:
+            absisse, color_detected = process_frame_rgb(frame, dico)
 
         if color_detected:
-            speed = pid(output)
+            speed = pid(absisse-width/2)
             print("blue detected")
         else:
             speed = 0
