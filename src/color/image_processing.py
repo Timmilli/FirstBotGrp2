@@ -69,7 +69,7 @@ def process_frame_hsv(frame, dico):
     bypass = False
     if coords is not None:
         # print("nb_coords ", len(coords))
-        if {len(coords) > 3500 and dico["current_color"] == 2}:
+        if len(coords) > 3500 and dico["current_color"] == 2:
             bypass = True
         color_detected = True
         for coord in coords:
