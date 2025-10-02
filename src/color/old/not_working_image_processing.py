@@ -42,10 +42,8 @@ def process_frame_hsv(frame, dico):
         full_frame = deepcopy(frame)
 
     # frame = frame[0:height, int(width/2)-5:int(width/2)+5]
-    if not dico["COMPUTER_USED"]:
-        frame = frame[dico["top_band"]:dico["bot_band"], 0:dico["width"]]
+    # frame = frame[dico["top_band"]:dico["bot_band"], 0:dico["width"]]
 
-    print(frame.shape)
     # Transform from RGB to HSV
     hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
@@ -69,7 +67,7 @@ def process_frame_hsv(frame, dico):
     if coords is not None:
         color_detected = True
         for coord in coords:
-            nb_center += coord[0][0]
+            nb_center += coord[0][1]
             if dico["COMPUTER_USED"]:
                 output = cv2.circle(output, coord[0], radius=0,
                                     color=(0, 0, 255), thickness=-1)
@@ -137,7 +135,7 @@ def process_frame_hsv(frame, dico):
         dico["lower"] = np.array(dico["lower"], dtype="uint8")
         dico["upper"] = np.array(dico["upper"], dtype="uint8")
 
-    return ((nb_center/len(coords)), color_detected)
+    return (-(nb_center/len(coords)), color_detected)
 
 
 def process_frame_rgb(frame, dico):
@@ -145,8 +143,7 @@ def process_frame_rgb(frame, dico):
         full_frame = deepcopy(frame)
 
     # frame = frame[0:height, int(width/2)-5:int(width/2)+5]
-    if not dico["COMPUTER_USED"]:
-        frame = frame[dico["top_band"]:dico["bot_band"], 0:dico["width"]]
+    # frame = frame[dico["top_band"]:dico["bot_band"], 0:dico["width"]]
 
     # Mask and output for color to be followed
     mask = cv2.inRange(frame, dico["lower"], dico["upper"])
@@ -168,7 +165,7 @@ def process_frame_rgb(frame, dico):
     if coords is not None:
         color_detected = True
         for coord in coords:
-            nb_center += coord[0][0]
+            nb_center += coord[0][1]
             if dico["COMPUTER_USED"]:
                 output = cv2.circle(output, coord[0], radius=0,
                                     color=(0, 0, 255), thickness=-1)
@@ -238,4 +235,4 @@ def process_frame_rgb(frame, dico):
         dico["lower"] = np.array(dico["lower"], dtype="uint8")
         dico["upper"] = np.array(dico["upper"], dtype="uint8")
 
-    return ((nb_center/len(coords)), color_detected)
+    return (-(nb_center/len(coords)), color_detected)

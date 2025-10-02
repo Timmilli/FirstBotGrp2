@@ -13,7 +13,7 @@ parser.add_argument('-c', '--computer_used', action='store_true',
                     help='Defines if the program is launched on a computer.')
 parser.add_argument('-m', '--motor_used', action='store_true',
                     help='Defines if the motors needs to be used.')
-parser.add_argument('-b', '--brown_detection', action='store_false',
+parser.add_argument('-b', '--brown_detection', action='store_true',
                     help='Defines if the motors needs to be used.')
 
 parser.add_argument('-s', '--speed', nargs=1,
@@ -127,7 +127,7 @@ try:
             full_frame = deepcopy(frame)
 
         # frame = frame[0:height, int(width/2)-5:int(width/2)+5]
-        frame = frame[top_band:bot_band, 0:width]
+        # frame = frame[top_band:bot_band, 0:width]
 
         # Transform from RGB to HSV
         hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -210,11 +210,9 @@ try:
 
         if COMPUTER_USED:
             # Visual line, not necessary for computing
-            cv2.rectangle(output, (int(width/3), bot_band),
-                          (int(width*2/3), top_band), (255, 0,  0), 2)
 
-            # cv2.rectangle(output, (int(width/2)-5, 0),
-            #              (int(width/2)+5, height), (0, 255, 0), 2)
+            cv2.rectangle(output, (int(width/2)-5, 0),
+                          (int(width/2)+5, height), (0, 255, 0), 2)
 
             # Showing images
             cv2.imshow("images", np.hstack([frame, output]))

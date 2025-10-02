@@ -7,7 +7,6 @@ import argparse
 import sys
 
 from image_processing import next_color, process_frame_hsv, process_frame_rgb
-from controle import pixel_to_robot
 
 parser = argparse.ArgumentParser(
     prog='Main file',
@@ -18,7 +17,7 @@ parser.add_argument('-m', '--motor_used', action='store_true',
                     help='Defines if the motors needs to be used.')
 parser.add_argument('-b', '--brown_detection', action='store_true',
                     help='Defines if the motors needs to be used.')
-parser.add_argument('-r', '--rgb_used', action='store_true',
+parser.add_argument('-r', '--rgb_used', action='store_false',
                     help='Defines if the RGB is used over the HSV.')
 
 parser.add_argument('-col', '--color', nargs=1,
@@ -42,10 +41,9 @@ print(
 # Maroon has to be the last color
 hsv_boundaries = [
     ([90, 120, 200], [110, 255, 255]),  # A blue tape
-    ([10, 90, 210], [40, 135, 255]),  # A yellow tape (to be reworked)
+    ([10, 90, 210], [40, 135, 255]),  # A yellow tape
     ([110, 100, 200], [180, 200, 255]),  # A red tape
-    ([0, 0, 60], [180, 90, 140])  # A maroon tape (to be reworked)
-
+    ([0, 0, 60], [180, 90, 140])  # A maroon tape
 ]
 # Coded in BGR
 # Maroon has to be the last color
@@ -97,30 +95,8 @@ height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps = int(video_capture.get(cv2.CAP_PROP_FPS))
 print(f"width:{width}; height:{height}; fps:{fps}")
 
-pid = PID(1, 0.2, 0.1, setpoint=0)
+pid = PID(0.5, 0.05, 0.01, setpoint=0)
 
-# Ptn pixel de l'image
-pts_image = np.array([
-    [0, 0],
-    [639, 0],
-    [0, 479],
-    [639, 479]
-], dtype=np.float32)
-
-ptn_image_cm = np.array([
-    [0, 0],
-    [9, 0.3],
-    [-13, 8],
-    [106, 173]
-], dtype=np.float32)
-
-# Points robot correspondants en cm 
-pts_robot = np.array([
-    [-49, 82],
-    [41, 85],
-    [-62, 162],
-    [57, 173]
-], dtype=np.float32)
 
 def exit_program():
     video_capture.release()
@@ -161,30 +137,24 @@ try:
             exit_program()
 
         if RGB_USED:
-            absisse, color_detected = process_frame_rgb(frame, dico)
-        else:
             absisse, color_detected = process_frame_hsv(frame, dico)
+        else:
+            absisse, color_detected = process_frame_rgb(frame, dico)
 
         if color_detected:
-            speed = pid((absisse-width/2)/(width/2))
+            speed = pid(absisse-width/2)
         else:
             speed = 0
 
-        # print(round(absisse, 2))
-
         if MOTOR_USED:
             dxl_io.set_moving_speed(
-                {1: -(STANDARD_SPEED + speed*STANDARD_SPEED)})  # Degrees / s
+                {1: -(STANDARD_SPEED - speed*STANDARD_SPEED)})  # Degrees / s
             dxl_io.set_moving_speed(
-                {2: STANDARD_SPEED - speed*STANDARD_SPEED})  # Degrees / s
+                {2: STANDARD_SPEED + speed*STANDARD_SPEED})  # Degrees / s
 
         if COMPUTER_USED:
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 exit_program()
-        
-        if COMPUTER_USED:
-            x_robot, y_robot = pixel_to_robot(320, 240, pts_image, pts_robot)
-            print(f"Pixel (320,240) → Robot ({x_robot:.2f}, {y_robot:.2f}) cm")
 
 except KeyboardInterrupt:
     print("KeyboardInterrupt. Exiting...")
