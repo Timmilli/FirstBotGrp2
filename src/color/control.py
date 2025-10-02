@@ -5,12 +5,13 @@ from pypot import dynamixel
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 WHEEL_SIZE = 51.
-DIST_TOLERANCE = 5. # in mm
+DIST_TOLERANCE = 20. # in mm
 ANGLE_TOLERANCE = pi/15. # in radians
-SPEED_RATIO = 1
-SPEED_START_ROTATION = 1 ## in mm/s
+SPEED_RATIO = 5
+SPEED_START_ROTATION = 50 ## in mm/s
 DEBUG = True
 # Ptn pixel de l'image
 pts_image = np.array([
@@ -40,6 +41,7 @@ def rotation_speed_to_linear_speed(rotation_speed) -> float: #in degres/s
     return perimeter*rotation_speed/360
 
 def go_to_xya(x, y, theta):
+    y = -y
     ports = dynamixel.get_available_ports()
     if not ports:
         exit('No port')
@@ -52,6 +54,9 @@ def go_to_xya(x, y, theta):
     delta_time = 0.
     tolerance_time = 1_000_000. # in microseconds
     start = datetime.now()
+
+    rear_mode = False
+
     while(True):
         if DEBUG:
             print(f"Currently at {curr_x}, {curr_y}, {curr_theta}")
@@ -59,52 +64,105 @@ def go_to_xya(x, y, theta):
 
         dx_to_target = (x - curr_x)
         dy_to_target = (y - curr_y)
-        goal_linear_speed = SPEED_RATIO * sqrt(dx_to_target**2 + dy_to_target**2)
-        goal_angular_speed = SPEED_RATIO * (atan2(dy_to_target, dx_to_target) - curr_theta)
         
-        # If don't want to advance anymore, try to match target theta
-        if (goal_linear_speed < SPEED_START_ROTATION):
-            goal_angular_speed += SPEED_RATIO * (theta-curr_theta)
+        d_to_target = sqrt(dx_to_target**2 + dy_to_target**2)
+        angle_to_target = atan2(dy_to_target, dx_to_target) - curr_theta
         
+        goal_linear_speed = SPEED_RATIO * d_to_target
+        # goal_linear_speed = 400
+        goal_angular_speed = SPEED_RATIO * angle_to_target
+
+        dx_to_target_robot = d_to_target * cos(angle_to_target)
+
+        if((dx_to_target_robot < -100 and not rear_mode) or (dx_to_target_robot > 100 and rear_mode)):
+            rear_mode = not rear_mode
+        if rear_mode:
+            goal_linear_speed *= -1
+
         (goal_v_droit, goal_v_gauche) = inverse_kinematics(goal_linear_speed, goal_angular_speed)
-        (goal_v_droit, goal_v_gauche) = (max(-600, min(600, goal_v_droit)), max(-600, min(600, goal_v_gauche)))
-        
+        while (abs(goal_v_droit) > 600 or abs(goal_v_gauche) > 600):
+            goal_v_droit *= 0.9
+            goal_v_gauche *= 0.9
+
         if DEBUG:
             print(f"wanting to go at linear_speed = {goal_linear_speed} and angular_speed = {goal_angular_speed}")
             print(f"making it goal_v_droit = {goal_v_droit} and goal_v_gauche = {goal_v_gauche}")
 
-        delta_time = start - datetime.now()
+        delta_time = datetime.now() - start
         
-        dxl_io.set_moving_speed({1: goal_v_droit})
+        dxl_io.set_moving_speed({1: -goal_v_droit})
         dxl_io.set_moving_speed({2: goal_v_gauche})
          
         start = datetime.now()
+        time.sleep(0.1)
 
-        real_v_droit = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([1])[0])
+
+        real_v_droit = -rotation_speed_to_linear_speed(dxl_io.get_moving_speed([1])[0])
         real_v_gauche = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([2])[0])
         (real_linear_speed, real_angular_speed) = direct_kinematics(real_v_droit, real_v_gauche)
         norm = real_linear_speed * delta_time.microseconds/1_000_000
         angle = real_angular_speed * delta_time.microseconds/1_000_000
         dxw = norm*cos(curr_theta+angle)
-        dyw = norm*sin(curr_theta+angle)
-        print(f"real_v_droit = {real_v_droit}, real_v_gauche = {real_v_gauche}, real_linear_speed = {real_linear_speed}, norm = {norm}, angle = {angle}, dxw = {dxw}, dyw = {dyw}")
-        
+        dyw = norm*sin(curr_theta+angle) 
+        # dyw = norm*sin(curr_theta+angle)/10 #TODO: Suppr the 10x (normalement) 
+        print(f"real_v_droit = {real_v_droit}, real_v_gauche = {real_v_gauche}, real_linear_speed = {real_linear_speed}, real_angular_speed = {real_angular_speed}, norm = {norm}, angle = {angle}, dxw = {dxw}, dyw = {dyw}")
+        print(f"deltatime = {delta_time.microseconds/1_000_000}\n")
         (prev_x, prev_y, prev_theta) = (curr_x, curr_y, curr_theta)
-        (curr_x, curr_y, curr_theta) = (prev_x+dxw, prev_y+dyw, prev_theta+angle)
+        (curr_x, curr_y, curr_theta) = (prev_x+dxw, prev_y+dyw, (prev_theta+angle))
 
-        if (x - curr_x < DIST_TOLERANCE and y - curr_y < DIST_TOLERANCE and theta - curr_theta < ANGLE_TOLERANCE):
+        if ((abs(x - curr_x) < 10 and abs(y - curr_y) < 10) or tolerance_time <= 0.):
+            break
+
+        if (abs(x - curr_x) < DIST_TOLERANCE and abs(y - curr_y) < DIST_TOLERANCE):
             tolerance_time -= delta_time.microseconds
 
-        if (tolerance_time <= 0.):
-            break 
+
+    while abs(theta - curr_theta) > pi/16:
+        print(f"Currently at {curr_x}, {curr_y}, {curr_theta}")
+        print(f"Distances to target: {x - curr_x}, {y - curr_y}, {theta - curr_theta}")
+        delta = theta - curr_theta
+        speed = -   100*delta
+        while abs(speed) < 50:
+            speed *= 2
+
+        delta_time = datetime.now() - start
+
+        dxl_io.set_moving_speed({1: speed})
+        dxl_io.set_moving_speed({2: speed})
+
+        start = datetime.now()
+        time.sleep(0.1)
+
+        real_v_droit = -rotation_speed_to_linear_speed(dxl_io.get_moving_speed([1])[0])
+        real_v_gauche = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([2])[0])
+        (real_linear_speed, real_angular_speed) = direct_kinematics(real_v_droit, real_v_gauche)
+        norm = real_linear_speed * delta_time.microseconds/1_000_000
+        angle = real_angular_speed * delta_time.microseconds/1_000_000
+        dxw = norm*cos(curr_theta+angle)
+        dyw = norm*sin(curr_theta+angle) 
+        # dyw = norm*sin(curr_theta+angle)/10 #TODO: Suppr the 10x (normalement) 
+        print(f"real_v_droit = {real_v_droit}, real_v_gauche = {real_v_gauche}, real_linear_speed = {real_linear_speed}, real_angular_speed = {real_angular_speed}, norm = {norm}, angle = {angle}, dxw = {dxw}, dyw = {dyw}")
+        print(f"deltatime = {delta_time.microseconds/1_000_000}\n")
+        (prev_x, prev_y, prev_theta) = (curr_x, curr_y, curr_theta)
+        (curr_x, curr_y, curr_theta) = (prev_x+dxw, prev_y+dyw, prev_theta+angle)
+        if curr_theta > pi:
+            curr_theta -= 2*pi
+        elif curr_theta < -pi:
+            curr_theta += 2*pi
+
+
     dxl_io.set_moving_speed({1: 0})
     dxl_io.set_moving_speed({2: 0})
 
 def go_to_one_frame(x, y, dxlio):
+    y = -y
     goal_linear_speed = SPEED_RATIO * sqrt(x**2 + y**2)
     goal_angular_speed = SPEED_RATIO * atan2(y, x)
     (goal_v_droit, goal_v_gauche) = inverse_kinematics(goal_linear_speed, goal_angular_speed)
-    return (max(600, goal_v_droit), max(600, goal_v_gauche))
+    while (abs(goal_v_droit) > 150 or abs(goal_v_gauche) > 150):
+            goal_v_droit *= 0.9
+            goal_v_gauche *= 0.9
+    return (goal_v_droit, goal_v_gauche)
 
 # Ptn pixel de l'image
 pts_image = np.array([
