@@ -84,7 +84,7 @@ if MOTOR_USED:
         sys.exit("Motors are used but are not detected. Exiting...")
     else:
         dxl_io = pypot.dynamixel.DxlIO(ports[0])
-        dxl_io.set_wheel_mode([1])
+        dxl_io.set_wheel_mode([1, 2])
         STANDARD_SPEED = 360
         print(
             f"Motors detected and used. Setting standard speed at {STANDARD_SPEED}.")
