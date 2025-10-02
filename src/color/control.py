@@ -41,9 +41,6 @@ def rotation_speed_to_linear_speed(rotation_speed) -> float: #in degres/s
     return perimeter*rotation_speed/360
 
 def go_to_xya(x, y, theta):
-    global SPEED_RATIO
-    SPEED_RATIO_BAK = SPEED_RATIO
-
     y = -y
     ports = dynamixel.get_available_ports()
     if not ports:
@@ -79,7 +76,7 @@ def go_to_xya(x, y, theta):
 
         if((dx_to_target_robot < -100 and not rear_mode) or (dx_to_target_robot > 100 and rear_mode)):
             rear_mode = not rear_mode
-            SPEED_RATIO /= 10
+            goal_linear_speed /= 10
         if rear_mode:
             goal_linear_speed *= -1
 
@@ -97,11 +94,8 @@ def go_to_xya(x, y, theta):
         dxl_io.set_moving_speed({1: -goal_v_droit})
         dxl_io.set_moving_speed({2: goal_v_gauche})
          
-        SPEED_RATIO = SPEED_RATIO_BAK
-
         start = datetime.now()
         time.sleep(0.1)
-
 
         real_v_droit = -rotation_speed_to_linear_speed(dxl_io.get_moving_speed([1])[0])
         real_v_gauche = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([2])[0])
