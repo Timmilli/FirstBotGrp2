@@ -116,7 +116,7 @@ pts_image = np.array([
 
 
 
-def pixel_to_robot(u, v, pts_image, pts_robot):
+def pixel_to_robot(u, v):
     H, status = cv2.findHomography(pts_image, pts_robot)
     pixel = np.array([ [u, v] ], dtype=np.float32)
     robot_point = cv2.perspectiveTransform(np.array([pixel]), H)

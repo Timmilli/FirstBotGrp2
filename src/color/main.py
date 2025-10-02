@@ -161,7 +161,7 @@ try:
                 exit_program()
         
         if COMPUTER_USED:
-            x_robot, y_robot = pixel_to_robot(320, 240, pts_image, pts_robot)
+            x_robot, y_robot = pixel_to_robot(320, 240)
             print(f"Pixel (320,240) → Robot ({x_robot:.2f}, {y_robot:.2f}) cm")
 
 except KeyboardInterrupt:
