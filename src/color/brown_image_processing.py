@@ -1,8 +1,7 @@
 import numpy as np
 import cv2
 import pypot.dynamixel
-from simple_pid
-import PID
+from simple_pid import PID
 from copy import deepcopy
 
 
@@ -41,8 +40,9 @@ def coord_is_in_right(coord, width):
 def process_frame_hsv(frame, dico):
     if not dico["COMPUTER_USED"]:
         frame = frame[dico["top_band"]:dico["bot_band"], 0:dico["width"]]
-        brown_frame = frame[dico["brown_top_band"]:dico["brown_bot_band"], int(dico["width"]/3):int(dico["width"]*2/3)]
-        print(shape(brown_frame))
+        brown_frame = frame[dico["brown_top_band"]:dico["brown_bot_band"], int(
+            dico["width"]/3):int(dico["width"]*2/3)]
+        print(brown_frame.shape)
 
     # Transform from RGB to HSV
     hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -85,9 +85,10 @@ def process_frame_hsv(frame, dico):
         brown_nb_center = 0
         brown_nb_right = 0
         if brown_coords is not None:
-        #    for coord in brown_coords:
-        #         output = cv2.circle(output, coord[0], radius=0,            
-	#	    color=(255, 255, 255), thickness=-1)
+            if dico["VIDEO_FEEDBACK"]:
+                for coord in brown_coords:
+                    output = cv2.circle(output, coord[0], radius=0,
+                                        color=(255, 255, 255), thickness=-1)
             # If the coordinate is in the first (left) third
             # if coord_is_in_left(coord[0], dico["width"]):
             #    # Show the coordinate as red

@@ -1,8 +1,7 @@
 import numpy as np
 import cv2
 import pypot.dynamixel
-from simple_pid
-import PID
+from simple_pid import PID
 import argparse
 import sys
 
