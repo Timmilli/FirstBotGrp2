@@ -5,11 +5,10 @@ from simple_pid import PID
 from copy import deepcopy
 import argparse
 import sys
+import time
 
-from math import cos, sin, sqrt, atan2, pi
-from datetime import datetime
 from image_processing import next_color, process_frame_hsv, process_frame_rgb
-from control import pixel_to_robot, go_to_one_frame, pixel_to_world, rotation_speed_to_linear_speed
+from control import pixel_to_robot, go_to_one_frame
 
 parser = argparse.ArgumentParser(
     prog='Main file',
@@ -89,8 +88,8 @@ if MOTOR_USED:
         sys.exit("Motors are used but are not detected. Exiting...")
     else:
         dxl_io = pypot.dynamixel.DxlIO(ports[0])
-        dxl_io.set_wheel_mode([1, 2])
-        STANDARD_SPEED = 360
+        dxl_io.set_wheel_mode([1])
+        STANDARD_SPEED = 300
         print(
             f"Motors detected and used. Setting standard speed at {STANDARD_SPEED}.")
 
@@ -102,7 +101,7 @@ height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps = int(video_capture.get(cv2.CAP_PROP_FPS))
 print(f"width:{width}; height:{height}; fps:{fps}")
 
-pid = PID(2, 0.4, 0.01, setpoint=0)
+pid = PID(2, 0.4, 0.1, setpoint=0)
 
 
 def exit_program():
@@ -137,9 +136,6 @@ try:
         "switch_ready": switch_ready
     }
     speed = 0
-    curr_x, curr_y, curr_theta = 0., 0., 0.
-    prev_time = datetime.now()
-    
     while True:
         result, frame = video_capture.read()  # read frames from the video
         if result is False:
@@ -149,7 +145,14 @@ try:
         if RGB_USED:
             absisse, color_detected = process_frame_rgb(frame, dico)
         else:
-            absisse, color_detected = process_frame_hsv(frame, dico)
+            bypass = False
+            absisse, color_detected, bypass = process_frame_hsv(frame, dico)
+            if bypass and MOTOR_USED:
+                # print(bypass)
+                dxl_io.set_moving_speed({1: -300})  # Degrees / s
+                dxl_io.set_moving_speed({2: 300})  # Degrees / s
+                time.sleep(0.05)
+
 
         v_mot_droit, v_mot_gauche = 0, 0
         if PID_USED:
@@ -157,15 +160,15 @@ try:
                 speed = pid((absisse-width/2)/(width/2))
             else:
                 speed = 0
-            v_mot_droit = (STANDARD_SPEED - ((3/4)*STANDARD_SPEED*abs(speed)) + speed*STANDARD_SPEED)
-            v_mot_gauche = STANDARD_SPEED - ((3/4)*STANDARD_SPEED*abs(speed)) - speed*STANDARD_SPEED
-            print(round(speed, 2))
+            v_mot_droit = (STANDARD_SPEED - ((4/5)*STANDARD_SPEED*abs(speed)) + speed*STANDARD_SPEED)
+            v_mot_gauche = STANDARD_SPEED - ((4/5)*STANDARD_SPEED*abs(speed)) - speed*STANDARD_SPEED
+            # print(round(speed, 2))
         else:
             if not color_detected :
                 absisse = width/2
             x_robot, y_robot = pixel_to_robot(absisse, (top_band+bot_band)/2)
             v_mot_droit, v_mot_gauche = go_to_one_frame(x_robot, y_robot, dxl_io)
-            print(round(absisse, 2), (top_band+bot_band)/2, round(x_robot, 2), round(y_robot, 2), v_mot_droit, v_mot_gauche)
+            # print(round(absisse, 2), (top_band+bot_band)/2, round(x_robot, 2), round(y_robot, 2), v_mot_droit, v_mot_gauche)
 
         # print(round(absisse, 2))
 
@@ -177,27 +180,8 @@ try:
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 exit_program()
 
-        now = datetime.now()
-        delta_time = (now - prev_time).total_seconds()
-        prev_time = now
-        real_v_droit = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([1]))
-        real_v_gauche = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([2]))
-        linear_speed = (real_v_droit + real_v_gauche) / 2
-        angular_speed = (real_v_droit - real_v_gauche) / WHEEL_DISTANCE
-        delta_theta = angular_speed * delta_time
-        if delta_theta == 0:
-            delta_x = linear_speed * delta_time
-            delta_y = 0
-        else:
-            delta_x = (linear_speed / angular_speed) * (sin(curr_theta + delta_theta) - sin(curr_theta))
-            delta_y = (linear_speed / angular_speed) * (-cos(curr_theta + delta_theta) + cos(curr_theta))
-        curr_x += delta_x
-        curr_y += delta_y
-        curr_theta += delta_theta
-    
         if COMPUTER_USED:
             x_robot, y_robot = pixel_to_robot(320, 240)
-            x_world, y_world = pixel_to_world(absisse, (top_band+bot_band)/2, curr_x, curr_y, curr_theta)
             print(f"Pixel (320,240) → Robot ({x_robot:.2f}, {y_robot:.2f}) cm")
 
 except KeyboardInterrupt:
