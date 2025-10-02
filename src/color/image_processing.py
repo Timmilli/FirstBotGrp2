@@ -5,13 +5,15 @@ from simple_pid import PID
 from copy import deepcopy
 
 
-def next_color(current_color, boundaries, color_string):
-    if current_color < len(boundaries)-2:
-        current_color += 1
+def next_color(dico):
+    boundaries = dico["boundaries"]
+    color_string = dico["color_string"]
+    if dico["current_color"] < len(boundaries)-2:
+        dico["current_color"] += 1
     else:
-        current_color = 0
-    print(color_string[current_color])
-    return current_color
+        dico["current_color"] = 0
+    print(color_string[dico["current_color"]])
+    dico["lower"], dico["upper"] = dico["boundaries"][dico["current_color"]]
 
 
 def coord_is_in_left(coord, width):
@@ -40,7 +42,7 @@ def process_frame_hsv(frame, dico):
         full_frame = deepcopy(frame)
 
     # frame = frame[0:height, int(width/2)-5:int(width/2)+5]
-    frame = frame[dico["top_band"]:dico["bot_band"], 0:dico["width"]]
+    # frame = frame[dico["top_band"]:dico["bot_band"], 0:dico["width"]]
 
     # Transform from RGB to HSV
     hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -109,13 +111,12 @@ def process_frame_hsv(frame, dico):
         else:
             brown_coords = [0]
         brown_center_percentage = brown_nb_center/len(brown_coords)
-        if not dico["switch_ready"] and dico["brown_center_percentage"] < 0.2:
+        if not dico["switch_ready"] and brown_center_percentage < 0.2:
             dico["switch_ready"] = True
-        if dico["switch_ready"] and 0.7 <= dico["brown_center_percentage"] and dico["brown_center_percentage"] <= 1:
-            dico["lower"], dico["upper"] = dico["boundaries"][next_color(
-                dico["current_color"], dico["boundaries"], dico["color_string"])]
-            lower = np.array(dico["lower"], dtype="uint8")
-            upper = np.array(dico["upper"], dtype="uint8")
+        if dico["switch_ready"] and 0.7 <= brown_center_percentage and brown_center_percentage <= 1:
+            next_color(dico)
+            dico["lower"] = np.array(dico["lower"], dtype="uint8")
+            dico["upper"] = np.array(dico["upper"], dtype="uint8")
             switch_ready = False
 
     if dico["COMPUTER_USED"]:
@@ -130,8 +131,7 @@ def process_frame_hsv(frame, dico):
         cv2.imshow("images", np.hstack([frame, output]))
 
     if cv2.waitKey(1) & 0xFE == ord("n"):
-        dico["lower"], dico["upper"] = dico["boundaries"][next_color(
-            dico["current_color"], dico["boundaries"], dico["color_string"])]
+        next_color(dico)
         dico["lower"] = np.array(dico["lower"], dtype="uint8")
         dico["upper"] = np.array(dico["upper"], dtype="uint8")
 
@@ -143,7 +143,7 @@ def process_frame_rgb(frame, dico):
         full_frame = deepcopy(frame)
 
     # frame = frame[0:height, int(width/2)-5:int(width/2)+5]
-    frame = frame[dico["top_band"]:dico["bot_band"], 0:dico["width"]]
+    # frame = frame[dico["top_band"]:dico["bot_band"], 0:dico["width"]]
 
     # Mask and output for color to be followed
     mask = cv2.inRange(frame, dico["lower"], dico["upper"])
