@@ -13,17 +13,11 @@ SPEED_START_ROTATION = 1 ## in mm/s
 DEBUG = True
 # Ptn pixel de l'image
 pts_image = np.array([
-    [0, 0],
-    [639, 0],
     [0, 479],
-    [639, 479]
-], dtype=np.float32)
-
-ptn_image_cm = np.array([
+    [639, 479],
     [0, 0],
-    [9, 0.3],
-    [-13, 8],
-    [106, 173]
+    [639, 0]
+    
 ], dtype=np.float32)
 
 # Points robot correspondants en cm 
