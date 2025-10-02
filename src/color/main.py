@@ -7,7 +7,7 @@ import argparse
 import sys
 
 from image_processing import next_color, process_frame_hsv, process_frame_rgb
-from controle import pixel_to_robot
+from control import pixel_to_robot
 
 parser = argparse.ArgumentParser(
     prog='Main file',
@@ -42,7 +42,7 @@ print(
 # Maroon has to be the last color
 hsv_boundaries = [
     ([90, 120, 200], [110, 255, 255]),  # A blue tape
-    ([10, 90, 210], [40, 135, 255]),  # A yellow tape (to be reworked)
+    ([10, 80, 100], [40, 200, 255]),  # A yellow tape (to be reworked)
     ([110, 100, 200], [180, 200, 255]),  # A red tape
     ([0, 0, 60], [180, 90, 140])  # A maroon tape (to be reworked)
 
@@ -159,7 +159,7 @@ try:
         if COMPUTER_USED:
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 exit_program()
-        
+
         if COMPUTER_USED:
             x_robot, y_robot = pixel_to_robot(320, 240)
             print(f"Pixel (320,240) → Robot ({x_robot:.2f}, {y_robot:.2f}) cm")
