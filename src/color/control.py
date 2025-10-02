@@ -80,9 +80,9 @@ pts_image = np.array([
 
 # Points robot correspondants en cm 
 pts_robot = np.array([
-    [4.9, 8.2],
+    [-4.9, 8.2],
     [4.1, 8.5],
-    [6.2, 16.2],
+    [-6.2, 16.2],
     [5.7, 17.3]
 ], dtype=np.float32)
 
