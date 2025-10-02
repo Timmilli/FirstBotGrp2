@@ -9,6 +9,7 @@ import time
 
 from image_processing import next_color, process_frame_hsv, process_frame_rgb
 from control import pixel_to_robot, go_to_one_frame
+from odom import odom_mapping
 
 parser = argparse.ArgumentParser(
     prog='Main file',
@@ -23,6 +24,8 @@ parser.add_argument('-r', '--rgb_used', action='store_true',
                     help='Defines if the RGB is used over the HSV.')
 parser.add_argument('-p', '--pid_used', action='store_true',
                     help='Use a simple PID as the motor control.')
+parser.add_argument('-o', '--odom_used', action='store_true',
+                    help='Using the odometry to map a path.')
 
 parser.add_argument('-col', '--color',
                     default=0, type=int,
@@ -31,7 +34,26 @@ parser.add_argument('-s', '--speed',
                     default=360, type=int,
                     help='Defines the standard speed of the wheels. Default is 360.')
 
+
 args = parser.parse_args()
+
+if(args.odom_used):
+    ports = pypot.dynamixel.get_available_ports()
+    if not ports:
+        sys.exit("Motors are used but are not detected. Exiting...")
+    else:
+        dxl_io = pypot.dynamixel.DxlIO(ports[0])
+        dxl_io.set_wheel_mode([1, 2])
+        dxl_io.disable_torque([1, 2])
+    current_time = time.time()  # in milliseconds
+    curr_x, curr_y, curr_theta = 0., 0., 0.
+    while True:
+        delta_time = time.time() - current_time
+        current_time = time.time()
+        curr_x, curr_y, curr_theta = odom_mapping(curr_x, curr_y, curr_theta, dxl_io, delta_time)
+        print(f"Robot position: x={1000*curr_x:.2f} mm, y={1000*curr_y:.2f} mm, theta={curr_theta:.2f} rad")
+        # print(delta_time, curr_x, curr_y, curr_theta)
+
 
 MOTOR_USED = args.motor_used
 COMPUTER_USED = args.computer_used
