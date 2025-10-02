@@ -6,13 +6,9 @@ from copy import deepcopy
 import argparse
 import sys
 import time
-import matplotlib.pyplot as plt
 
-from odom import WHEEL_DISTANCE
-from math import cos, sin, sqrt, atan2, pi
-from datetime import datetime
 from image_processing import next_color, process_frame_hsv, process_frame_rgb
-from control import pixel_to_robot, go_to_one_frame, pixel_to_world, rotation_speed_to_linear_speed,update_mapping
+from control import pixel_to_robot, go_to_one_frame
 
 parser = argparse.ArgumentParser(
     prog='Main file',
@@ -65,7 +61,7 @@ rgb_boundaries = [
 ]
 
 color_string = [ "Yellow Tape", "Blue Tape", "Red Tape", "Maroon Tape"]
-current_color = args.color
+current_color = int(args.color[0])
 
 if RGB_USED:
     boundaries = rgb_boundaries
@@ -93,7 +89,7 @@ if MOTOR_USED:
     else:
         dxl_io = pypot.dynamixel.DxlIO(ports[0])
         dxl_io.set_wheel_mode([1])
-        STANDARD_SPEED = 300
+        STANDARD_SPEED = 500 # values best between 300 and 700
         print(
             f"Motors detected and used. Setting standard speed at {STANDARD_SPEED}.")
 
@@ -140,19 +136,19 @@ try:
         "switch_ready": switch_ready
     }
     speed = 0
-    curr_x, curr_y, curr_theta = 0., 0., 0.
-    prev_time = datetime.now()
+    color_search = False
     while True:
         result, frame = video_capture.read()  # read frames from the video
         if result is False:
             print("Capture has failed. Exiting...")
             exit_program()
 
+        print(color_string[current_color])
         if RGB_USED:
             absisse, color_detected = process_frame_rgb(frame, dico)
         else:
             bypass = False
-            absisse, color_detected, bypass = process_frame_hsv(frame, dico)
+            absisse, color_detected, other_color_detected, bypass = process_frame_hsv(frame, dico)
             if bypass and MOTOR_USED:
                 # print(bypass)
                 dxl_io.set_moving_speed({1: -300})  # Degrees / s
@@ -164,16 +160,22 @@ try:
         if PID_USED:
             if color_detected:
                 speed = pid((absisse-width/2)/(width/2))
+                color_search = False
             else:
                 speed = 0
-            v_mot_droit = (STANDARD_SPEED - ((4/5)*STANDARD_SPEED*abs(speed)) + speed*STANDARD_SPEED)
+                if not other_color_detected:
+                    color_search = True
+                if not color_search:
+                    next_color(dico)
+
+            v_mot_droit = STANDARD_SPEED - ((4/5)*STANDARD_SPEED*abs(speed)) + speed*STANDARD_SPEED
             v_mot_gauche = STANDARD_SPEED - ((4/5)*STANDARD_SPEED*abs(speed)) - speed*STANDARD_SPEED
             # print(round(speed, 2))
         else:
             if not color_detected :
                 absisse = width/2
-            x_robot, y_robot = pixel_to_robot(absisse, (top_band+bot_band)/2)
-            v_mot_droit, v_mot_gauche = go_to_one_frame(x_robot, y_robot, dxl_io)
+            x_robot, y_robot = pixel_to_robot(absisse, 480 - (top_band+bot_band)/2)
+            v_mot_droit, v_mot_gauche = go_to_one_frame(y_robot, 20*(x_robot + 5), dxl_io)
             # print(round(absisse, 2), (top_band+bot_band)/2, round(x_robot, 2), round(y_robot, 2), v_mot_droit, v_mot_gauche)
 
         # print(round(absisse, 2))
@@ -186,35 +188,10 @@ try:
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 exit_program()
 
-        now = datetime.now()
-        delta_time = (now - prev_time).total_seconds()
-        prev_time = now
-        real_v_droit = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([1]))
-        real_v_gauche = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([2]))
-        linear_speed = (real_v_droit + real_v_gauche) / 2
-        angular_speed = (real_v_droit - real_v_gauche) / WHEEL_DISTANCE
-        delta_theta = angular_speed * delta_time
-        if delta_theta == 0:
-            delta_x = linear_speed * delta_time
-            delta_y = 0
-        else:
-            delta_x = (linear_speed / angular_speed) * (sin(curr_theta + delta_theta) - sin(curr_theta))
-            delta_y = (linear_speed / angular_speed) * (-cos(curr_theta + delta_theta) + cos(curr_theta))
-        curr_x += delta_x
-        curr_y += delta_y
-        curr_theta += delta_theta
-        
         if COMPUTER_USED:
             x_robot, y_robot = pixel_to_robot(320, 240)
-            x_world, y_world = pixel_to_world(absisse, (top_band+bot_band)/2, curr_x, curr_y, curr_theta)
             print(f"Pixel (320,240) → Robot ({x_robot:.2f}, {y_robot:.2f}) cm")
 
-        detected_pixels = [(absisse, (top_band+bot_band)/2)]  # Ligne détectée
-
-        # Met à jour la carte avec les points du monde
-        update_mapping(curr_x, curr_y, detected_pixels)
-
-        
 except KeyboardInterrupt:
     print("KeyboardInterrupt. Exiting...")
     exit_program()

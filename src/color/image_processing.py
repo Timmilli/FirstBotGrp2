@@ -13,8 +13,10 @@ def next_color(dico):
         dico["current_color"] += 1
     else:
         dico["current_color"] = 0
-    print(color_string[dico["current_color"]])
+    print("next", color_string[dico["current_color"]])
     dico["lower"], dico["upper"] = dico["boundaries"][dico["current_color"]]
+    dico["lower"] = np.array(dico["lower"], dtype="uint8")
+    dico["upper"] = np.array(dico["upper"], dtype="uint8")
 
 
 def coord_is_in_left(coord, width):
@@ -66,6 +68,7 @@ def process_frame_hsv(frame, dico):
     nb_center = 0
     # In case if nothing is detected
     color_detected = False
+    other_color_detected = False
     bypass = False
     if coords is not None:
         # print("nb_coords ", len(coords))
@@ -80,8 +83,24 @@ def process_frame_hsv(frame, dico):
         # print(nb_center/len(coords)/width - 0.5, ", speed = ", speed)
 
     else:
+        next_color(dico)
+        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv_frame, dico["lower"], dico["upper"])
+        coords = cv2.findNonZero(mask)
+        # if coords is not None:
+        #     if len(coords) > 300:
+                # other_color_detected = True
+
+        next_color(dico)
+        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv_frame, dico["lower"], dico["upper"])
+        coords = cv2.findNonZero(mask)
+        # if coords is not None:
+        #     if len(coords) > 300:
+                # other_color_detected = True
+        
         coords = [0]
-        # print("color not detected, speed = ", speed)
+        next_color(dico)
 
     # Mask and output for color to be followed
     if dico["BROWN_USED"]:
@@ -121,8 +140,6 @@ def process_frame_hsv(frame, dico):
             dico["switch_ready"] = True
         if dico["switch_ready"] and 0.7 <= brown_center_percentage and brown_center_percentage <= 1:
             next_color(dico)
-            dico["lower"] = np.array(dico["lower"], dtype="uint8")
-            dico["upper"] = np.array(dico["upper"], dtype="uint8")
             switch_ready = False
 
     if dico["COMPUTER_USED"]:
@@ -138,10 +155,8 @@ def process_frame_hsv(frame, dico):
 
     if cv2.waitKey(1) & 0xFE == ord("n"):
         next_color(dico)
-        dico["lower"] = np.array(dico["lower"], dtype="uint8")
-        dico["upper"] = np.array(dico["upper"], dtype="uint8")
 
-    return ((nb_center/len(coords)), color_detected, bypass)
+    return ((nb_center/len(coords)), color_detected, other_color_detected, bypass)
 
 
 def process_frame_rgb(frame, dico):
