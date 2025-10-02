@@ -57,7 +57,7 @@ rgb_boundaries = [
 ]
 
 color_string = ["Blue Tape", "Yellow Tape",  "Red Tape", "Maroon Tape"]
-current_color = args.color
+current_color = int(args.color[0])
 
 if RGB_USED:
     boundaries = rgb_boundaries

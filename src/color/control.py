@@ -85,6 +85,8 @@ def go_to_xya(x, y, theta):
         angle = real_angular_speed * delta_time.microseconds/1_000_000
         dxw = norm*cos(curr_theta+angle)
         dyw = norm*sin(curr_theta+angle)
+        # print(norm, angle, dxw, dyw)
+        break
         
         (prev_x, prev_y, prev_theta) = (curr_x, curr_y, curr_theta)
         (curr_x, curr_y, curr_theta) = (prev_x+dxw, prev_y+dyw, prev_theta+angle)
@@ -93,8 +95,10 @@ def go_to_xya(x, y, theta):
             tolerance_time -= delta_time.microseconds
 
         if (tolerance_time <= 0.):
-            return
-        
+            break 
+    dxl_io.set_moving_speed({1: 0})
+    dxl_io.set_moving_speed({1: 0})
+
 def go_to_one_frame(x, y, dxlio):
     goal_linear_speed = SPEED_RATIO * sqrt(x**2 + y**2)
     goal_angular_speed = SPEED_RATIO * atan2(y, x)
