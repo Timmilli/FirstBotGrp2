@@ -7,7 +7,7 @@ import argparse
 import sys
 
 from image_processing import next_color, process_frame_hsv, process_frame_rgb
-from control import pixel_to_robot
+from control import pixel_to_robot, go_to_one_frame
 
 parser = argparse.ArgumentParser(
     prog='Main file',
@@ -20,6 +20,8 @@ parser.add_argument('-b', '--brown_detection', action='store_true',
                     help='Defines if the motors needs to be used.')
 parser.add_argument('-r', '--rgb_used', action='store_true',
                     help='Defines if the RGB is used over the HSV.')
+parser.add_argument('-p', '--pid_used', action='store_true',
+                    help='Use a simple PID as the motor control.')
 
 parser.add_argument('-col', '--color', nargs=1,
                     default=0, type=int,
@@ -34,6 +36,7 @@ MOTOR_USED = args.motor_used
 COMPUTER_USED = args.computer_used
 BROWN_USED = args.brown_detection
 RGB_USED = args.rgb_used
+PID_USED = args.pid_used
 
 print(
     f"Motor used:{MOTOR_USED}; Computer used:{COMPUTER_USED}; Brown used:{BROWN_USED}; Hsv used:{RGB_USED}")
@@ -41,8 +44,8 @@ print(
 # Coded in HSV
 # Maroon has to be the last color
 hsv_boundaries = [
-    ([90, 120, 200], [110, 255, 255]),  # A blue tape
     ([10, 80, 100], [40, 200, 255]),  # A yellow tape (to be reworked)
+    ([90, 120, 200], [110, 255, 255]),  # A blue tape
     ([110, 100, 200], [180, 200, 255]),  # A red tape
     ([0, 0, 60], [180, 90, 140])  # A maroon tape (to be reworked)
 
@@ -50,13 +53,13 @@ hsv_boundaries = [
 # Coded in BGR
 # Maroon has to be the last color
 rgb_boundaries = [
-    ([190, 150, 0], [255, 200, 50]),  # A blue tape
     ([100, 170, 150], [150, 220, 200]),  # A yellow tape (to be reworked on)
+    ([190, 150, 0], [255, 200, 50]),  # A blue tape
     ([140, 70, 130], [100, 100, 255]),  # A red tape (to be reworked on)
     ([110, 90, 70], [130, 110, 90]),  # A brown tape (to be reworked on)
 ]
 
-color_string = ["Blue Tape", "Yellow Tape",  "Red Tape", "Maroon Tape"]
+color_string = [ "Yellow Tape", "Blue Tape", "Red Tape", "Maroon Tape"]
 current_color = int(args.color[0])
 
 if RGB_USED:
@@ -85,7 +88,7 @@ if MOTOR_USED:
     else:
         dxl_io = pypot.dynamixel.DxlIO(ports[0])
         dxl_io.set_wheel_mode([1])
-        STANDARD_SPEED = 360
+        STANDARD_SPEED = 500
         print(
             f"Motors detected and used. Setting standard speed at {STANDARD_SPEED}.")
 
@@ -97,7 +100,7 @@ height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps = int(video_capture.get(cv2.CAP_PROP_FPS))
 print(f"width:{width}; height:{height}; fps:{fps}")
 
-pid = PID(1, 0.2, 0.04, setpoint=0)
+pid = PID(2, 0.4, 0.01, setpoint=0)
 
 
 def exit_program():
@@ -143,18 +146,27 @@ try:
         else:
             absisse, color_detected = process_frame_hsv(frame, dico)
 
-        if color_detected:
-            speed = pid((absisse-width/2)/(width/2))
+        v_mot_droit, v_mot_gauche = 0, 0
+        if PID_USED:
+            if color_detected:
+                speed = pid((absisse-width/2)/(width/2))
+            else:
+                speed = 0
+            v_mot_droit = (STANDARD_SPEED - ((3/4)*STANDARD_SPEED*abs(speed)) + speed*STANDARD_SPEED)
+            v_mot_gauche = STANDARD_SPEED - ((3/4)*STANDARD_SPEED*abs(speed)) - speed*STANDARD_SPEED
+            print(round(speed, 2))
         else:
-            speed = 0
+            if not color_detected :
+                absisse = width/2
+            x_robot, y_robot = pixel_to_robot(absisse, (top_band+bot_band)/2)
+            v_mot_droit, v_mot_gauche = go_to_one_frame(x_robot, y_robot, dxl_io)
+            print(round(absisse, 2), (top_band+bot_band)/2, round(x_robot, 2), round(y_robot, 2), v_mot_droit, v_mot_gauche)
 
         # print(round(absisse, 2))
 
         if MOTOR_USED:
-            dxl_io.set_moving_speed(
-                {1: -(STANDARD_SPEED + speed*STANDARD_SPEED)})  # Degrees / s
-            dxl_io.set_moving_speed(
-                {2: STANDARD_SPEED - speed*STANDARD_SPEED})  # Degrees / s
+            dxl_io.set_moving_speed({1: -v_mot_droit})  # Degrees / s
+            dxl_io.set_moving_speed({2: v_mot_gauche})  # Degrees / s
 
         if COMPUTER_USED:
             if cv2.waitKey(1) & 0xFF == ord("q"):
