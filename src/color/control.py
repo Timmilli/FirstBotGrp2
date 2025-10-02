@@ -87,11 +87,13 @@ def go_to_xya(x, y, theta):
         real_v_droit = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([1]))
         real_v_gauche = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([2]))
         (real_linear_speed, real_angular_speed) = direct_kinematics(real_v_droit, real_v_gauche)
-        dxw = real_linear_speed*cos(curr_theta+real_angular_speed)
-        dyw = real_linear_speed*sin(curr_theta+real_angular_speed)
+        norm = real_linear_speed * delta_time.microseconds/1_000_000
+        angle = real_angular_speed * delta_time.microseconds/1_000_000
+        dxw = norm*cos(curr_theta+angle)
+        dyw = norm*sin(curr_theta+angle)
         
         (prev_x, prev_y, prev_theta) = (curr_x, curr_y, curr_theta)
-        (curr_x, curr_y, curr_theta) = tick_odom(prev_x, prev_y, prev_theta, real_linear_speed, real_angular_speed, delta_time)
+        (curr_x, curr_y, curr_theta) = (prev_x+dxw, prev_y+dyw, prev_theta+angle)
 
         if (x - curr_x < DIST_TOLERANCE and y - curr_y < DIST_TOLERANCE and theta - curr_theta < ANGLE_TOLERANCE):
             tolerance_time -= delta_time.microseconds
