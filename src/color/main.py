@@ -7,6 +7,7 @@ import argparse
 import sys
 
 from image_processing import next_color, process_frame_hsv, process_frame_rgb
+from controle import pixel_to_robot
 
 parser = argparse.ArgumentParser(
     prog='Main file',
@@ -97,6 +98,28 @@ print(f"width:{width}; height:{height}; fps:{fps}")
 
 pid = PID(0.5, 0.05, 0.01, setpoint=0)
 
+# Ptn pixel de l'image
+pts_image = np.array([
+    [0, 0],
+    [639, 0],
+    [0, 479],
+    [639, 479]
+], dtype=np.float32)
+
+ptn_image_cm = np.array([
+    [0, 0],
+    [9, 0.3],
+    [-13, 8],
+    [106, 173]
+], dtype=np.float32)
+
+# Points robot correspondants en cm 
+pts_robot = np.array([
+    [-49, 82],
+    [41, 85],
+    [-62, 162],
+    [57, 173]
+], dtype=np.float32)
 
 def exit_program():
     video_capture.release()
@@ -155,6 +178,10 @@ try:
         if COMPUTER_USED:
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 exit_program()
+        
+        if COMPUTER_USED:
+            x_robot, y_robot = pixel_to_robot(320, 240, pts_image, pts_robot)
+            print(f"Pixel (320,240) → Robot ({x_robot:.2f}, {y_robot:.2f}) cm")
 
 except KeyboardInterrupt:
     print("KeyboardInterrupt. Exiting...")

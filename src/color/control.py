@@ -77,25 +77,12 @@ def go_to_xya(x, y, theta):
             return
         
         
-# Ptn pixel de l'image
-pts_image = np.array([
-    [0, 0],
-    [639, 0],
-    [0, 479],
-    [639, 479]
-], dtype=np.float32)
 
-# Points robot correspondants en cm 
-pts_robot = np.array([
-    [-4.9, 8.2],
-    [4.1, 8.5],
-    [-6.2, 16.2],
-    [5.7, 17.3]
-], dtype=np.float32)
 
-H, status = cv2.findHomography(pts_image, pts_robot)
 
-def pixel_to_robot(u, v):
+
+def pixel_to_robot(u, v, pts_image, pts_robot):
+    H, status = cv2.findHomography(pts_image, pts_robot)
     pixel = np.array([ [u, v] ], dtype=np.float32)
     robot_point = cv2.perspectiveTransform(np.array([pixel]), H)
     x_robot, y_robot = robot_point[0][0]
