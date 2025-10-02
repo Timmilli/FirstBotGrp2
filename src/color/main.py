@@ -140,6 +140,8 @@ try:
         "switch_ready": switch_ready
     }
     speed = 0
+    curr_x, curr_y, curr_theta = 0., 0., 0.
+    prev_time = datetime.now()
     while True:
         result, frame = video_capture.read()  # read frames from the video
         if result is False:
@@ -184,8 +186,27 @@ try:
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 exit_program()
 
+        now = datetime.now()
+        delta_time = (now - prev_time).total_seconds()
+        prev_time = now
+        real_v_droit = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([1]))
+        real_v_gauche = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([2]))
+        linear_speed = (real_v_droit + real_v_gauche) / 2
+        angular_speed = (real_v_droit - real_v_gauche) / WHEEL_DISTANCE
+        delta_theta = angular_speed * delta_time
+        if delta_theta == 0:
+            delta_x = linear_speed * delta_time
+            delta_y = 0
+        else:
+            delta_x = (linear_speed / angular_speed) * (sin(curr_theta + delta_theta) - sin(curr_theta))
+            delta_y = (linear_speed / angular_speed) * (-cos(curr_theta + delta_theta) + cos(curr_theta))
+        curr_x += delta_x
+        curr_y += delta_y
+        curr_theta += delta_theta
+        
         if COMPUTER_USED:
             x_robot, y_robot = pixel_to_robot(320, 240)
+            x_world, y_world = pixel_to_world(absisse, (top_band+bot_band)/2, curr_x, curr_y, curr_theta)
             print(f"Pixel (320,240) → Robot ({x_robot:.2f}, {y_robot:.2f}) cm")
 
         detected_pixels = [(absisse, (top_band+bot_band)/2)]  # Ligne détectée
