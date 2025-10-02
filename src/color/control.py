@@ -5,22 +5,23 @@ from pypot import dynamixel
 import cv2
 import numpy as np
 
-wheel_distance = 159.40 ## in mm
-
-def inverse_kinematics(linear_speed, angular_speed) -> tuple[float, float]:
-    v_droit  = linear_speed + (angular_speed * wheel_distance / 2)
-    v_gauche = linear_speed - (angular_speed * wheel_distance / 2)
-    return (v_droit, v_gauche)
-
+WHEEL_DISTANCE = 159.40 ## in mm
 WHEEL_SIZE = 51.
-def rotation_speed_to_linear_speed(rotation_speed) -> float: #in degres/s
-    perimeter = 51*pi
-    return perimeter*rotation_speed/360
-
 DIST_TOLERANCE = 5. # in mm
 ANGLE_TOLERANCE = pi/15. # in radians
 SPEED_RATIO = 0.1
 SPEED_START_ROTATION = 1 ## in mm/s
+DEBUG = True
+
+def inverse_kinematics(linear_speed, angular_speed) -> tuple[float, float]:
+    v_droit  = linear_speed + (angular_speed * WHEEL_DISTANCE / 2)
+    v_gauche = linear_speed - (angular_speed * WHEEL_DISTANCE / 2)
+    return (v_droit, v_gauche)
+
+def rotation_speed_to_linear_speed(rotation_speed) -> float: #in degres/s
+    perimeter = 51*pi
+    return perimeter*rotation_speed/360
+
 def go_to_xya(x, y, theta):
     ports = dynamixel.get_available_ports()
     if not ports:
@@ -35,6 +36,9 @@ def go_to_xya(x, y, theta):
     tolerance_time = 1_000_000. # in microseconds
     start = datetime.now()
     while(True):
+        if DEBUG:
+            print(f"Currently at {curr_x}, {curr_y}, {curr_theta}")
+            print(f"Distances to target: {x - curr_x}, {y - curr_y}, {theta - curr_theta}")
 
         dx_to_target = (x - curr_x)
         dy_to_target = (y - curr_y)
@@ -45,6 +49,9 @@ def go_to_xya(x, y, theta):
         if (goal_linear_speed < SPEED_START_ROTATION):
             goal_angular_speed += SPEED_RATIO * (theta-curr_theta)
         
+        if DEBUG:
+            print(f"wanting to go at linear_speed = {goal_linear_speed} and angular_speed = {goal_angular_speed}")
+
         (goal_v_droit, goal_v_gauche) = inverse_kinematics(goal_linear_speed, goal_angular_speed)
         
         delta_time = start - datetime.now()
@@ -65,7 +72,7 @@ def go_to_xya(x, y, theta):
 
         if (x - curr_x < DIST_TOLERANCE and y - curr_y < DIST_TOLERANCE and theta - curr_theta < ANGLE_TOLERANCE):
             tolerance_time -= delta_time.microseconds
-        
+
         if (tolerance_time <= 0.):
             return
         
