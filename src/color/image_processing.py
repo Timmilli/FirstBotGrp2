@@ -65,7 +65,7 @@ def process_frame_hsv(frame, dico):
         brown_coords = cv2.findNonZero(brown_mask)
     nb_center = 0
     # In case if nothing is detected
-    color_detected = True
+    color_detected = False
     if coords is not None:
         color_detected = True
         for coord in coords:
@@ -164,7 +164,7 @@ def process_frame_rgb(frame, dico):
         brown_coords = cv2.findNonZero(brown_mask)
     nb_center = 0
     # In case if nothing is detected
-    color_detected = True
+    color_detected = False
     if coords is not None:
         color_detected = True
         for coord in coords:

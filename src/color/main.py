@@ -97,7 +97,7 @@ height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps = int(video_capture.get(cv2.CAP_PROP_FPS))
 print(f"width:{width}; height:{height}; fps:{fps}")
 
-pid = PID(1, 0.2, 0.1, setpoint=0)
+pid = PID(1, 0.2, 0.04, setpoint=0)
 
 
 def exit_program():
