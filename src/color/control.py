@@ -1,11 +1,10 @@
 from math import cos, sin, sqrt, atan2, pi
 from datetime import datetime
-from odom import direct_kinematics, tick_odom
+from odom import direct_kinematics, tick_odom, WHEEL_DISTANCE
 from pypot import dynamixel 
 import cv2
 import numpy as np
 
-WHEEL_DISTANCE = 159.40 ## in mm
 WHEEL_SIZE = 51.
 DIST_TOLERANCE = 5. # in mm
 ANGLE_TOLERANCE = pi/15. # in radians
@@ -76,7 +75,11 @@ def go_to_xya(x, y, theta):
         if (tolerance_time <= 0.):
             return
         
-        
+def go_to_one_frame(x, y, dxlio):
+    goal_linear_speed = SPEED_RATIO * sqrt(x**2 + y**2)
+    goal_angular_speed = SPEED_RATIO * atan2(y, x)
+    return inverse_kinematics(goal_linear_speed, goal_angular_speed)
+
 # Ptn pixel de l'image
 pts_image = np.array([
     [0, 0],
