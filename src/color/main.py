@@ -24,11 +24,11 @@ parser.add_argument('-r', '--rgb_used', action='store_true',
 parser.add_argument('-p', '--pid_used', action='store_true',
                     help='Use a simple PID as the motor control.')
 
-parser.add_argument('-col', '--color', nargs=1,
+parser.add_argument('-col', '--color',
                     default=0, type=int,
                     help='Defines the color of the line to follow.')
-parser.add_argument('-s', '--speed', nargs=1,
-                    default=360, type=float,
+parser.add_argument('-s', '--speed',
+                    default=360, type=int,
                     help='Defines the standard speed of the wheels. Default is 360.')
 
 args = parser.parse_args()
@@ -61,7 +61,7 @@ rgb_boundaries = [
 ]
 
 color_string = [ "Yellow Tape", "Blue Tape", "Red Tape", "Maroon Tape"]
-current_color = int(args.color[0])
+current_color = int(args.color)
 
 if RGB_USED:
     boundaries = rgb_boundaries
@@ -89,7 +89,7 @@ if MOTOR_USED:
     else:
         dxl_io = pypot.dynamixel.DxlIO(ports[0])
         dxl_io.set_wheel_mode([1])
-        STANDARD_SPEED = 500 # values best between 300 and 700
+        STANDARD_SPEED = args.speed  # values best between 300 and 700
         print(
             f"Motors detected and used. Setting standard speed at {STANDARD_SPEED}.")
 
@@ -175,8 +175,8 @@ try:
             if not color_detected :
                 absisse = width/2
             x_robot, y_robot = pixel_to_robot(absisse, 480 - (top_band+bot_band)/2)
-            v_mot_droit, v_mot_gauche = go_to_one_frame(y_robot, 20*(x_robot + 5), dxl_io)
-            # print(round(absisse, 2), (top_band+bot_band)/2, round(x_robot, 2), round(y_robot, 2), v_mot_droit, v_mot_gauche)
+            v_mot_droit, v_mot_gauche = go_to_one_frame(y_robot, 40*(x_robot + 5), dxl_io)
+            print(round(absisse, 2), (top_band+bot_band)/2, round(x_robot, 2), round(y_robot, 2), v_mot_droit, v_mot_gauche)
 
         # print(round(absisse, 2))
 
