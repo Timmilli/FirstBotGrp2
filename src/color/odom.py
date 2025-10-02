@@ -17,5 +17,7 @@ def odom(linear_speed, angular_speed, delta_time) -> tuple[float, float, float]:
     return (delta_x, delta_y, delta_theta)
 
 def tick_odom(prev_x, prev_y, prev_theta, linear_speed, angular_speed, delta_time) -> tuple[float, float, float]:
-    (delta_x, delta_y, delta_theta) = odom(linear_speed, angular_speed, delta_time)
-    return (prev_x + delta_x, prev_y + delta_y, prev_theta + delta_theta)                                                                                                                                                                                                                                                                                                                           
+    (delta_x_local, delta_y_local, delta_theta) = odom(linear_speed, angular_speed, delta_time)
+    delta_x_world = delta_x_local * cos(prev_theta) - delta_y_local * sin(prev_theta)
+    delta_y_world = delta_x_local * sin(prev_theta) + delta_y_local * cos(prev_theta)
+    return (prev_x + delta_x_world, prev_y + delta_y_world, prev_theta + delta_theta)                                                                                                                                                                                                                                                                                                                           
