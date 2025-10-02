@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 WHEEL_SIZE = 51.
 DIST_TOLERANCE = 5. # in mm
 ANGLE_TOLERANCE = pi/15. # in radians
-SPEED_RATIO = 0.1
+SPEED_RATIO = 1
 SPEED_START_ROTATION = 1 ## in mm/s
 DEBUG = True
 # Ptn pixel de l'image
@@ -37,7 +37,7 @@ def inverse_kinematics(linear_speed, angular_speed) -> tuple[float, float]:
 
 def rotation_speed_to_linear_speed(rotation_speed) -> float: #in degres/s
     perimeter = 51*pi
-    return perimeter*rotation_speed[0]/360
+    return perimeter*rotation_speed/360
 
 def go_to_xya(x, y, theta):
     ports = dynamixel.get_available_ports()
@@ -66,11 +66,12 @@ def go_to_xya(x, y, theta):
         if (goal_linear_speed < SPEED_START_ROTATION):
             goal_angular_speed += SPEED_RATIO * (theta-curr_theta)
         
+        (goal_v_droit, goal_v_gauche) = inverse_kinematics(goal_linear_speed, goal_angular_speed)
+        (goal_v_droit, goal_v_gauche) = (max(-600, min(600, goal_v_droit)), max(-600, min(600, goal_v_gauche)))
+        
         if DEBUG:
             print(f"wanting to go at linear_speed = {goal_linear_speed} and angular_speed = {goal_angular_speed}")
-
-        (goal_v_droit, goal_v_gauche) = inverse_kinematics(goal_linear_speed, goal_angular_speed)
-        (goal_v_droit, goal_v_gauche) = (max(600, goal_v_droit), max(600, goal_v_gauche))
+            print(f"making it goal_v_droit = {goal_v_droit} and goal_v_gauche = {goal_v_gauche}")
 
         delta_time = start - datetime.now()
         
@@ -79,15 +80,14 @@ def go_to_xya(x, y, theta):
          
         start = datetime.now()
 
-        real_v_droit = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([1]))
-        real_v_gauche = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([2]))
+        real_v_droit = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([1])[0])
+        real_v_gauche = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([2])[0])
         (real_linear_speed, real_angular_speed) = direct_kinematics(real_v_droit, real_v_gauche)
         norm = real_linear_speed * delta_time.microseconds/1_000_000
         angle = real_angular_speed * delta_time.microseconds/1_000_000
         dxw = norm*cos(curr_theta+angle)
         dyw = norm*sin(curr_theta+angle)
-        # print(norm, angle, dxw, dyw)
-        break
+        print(f"real_v_droit = {real_v_droit}, real_v_gauche = {real_v_gauche}, real_linear_speed = {real_linear_speed}, norm = {norm}, angle = {angle}, dxw = {dxw}, dyw = {dyw}")
         
         (prev_x, prev_y, prev_theta) = (curr_x, curr_y, curr_theta)
         (curr_x, curr_y, curr_theta) = (prev_x+dxw, prev_y+dyw, prev_theta+angle)
@@ -98,7 +98,7 @@ def go_to_xya(x, y, theta):
         if (tolerance_time <= 0.):
             break 
     dxl_io.set_moving_speed({1: 0})
-    dxl_io.set_moving_speed({1: 0})
+    dxl_io.set_moving_speed({2: 0})
 
 def go_to_one_frame(x, y, dxlio):
     goal_linear_speed = SPEED_RATIO * sqrt(x**2 + y**2)
