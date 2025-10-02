@@ -11,6 +11,29 @@ ANGLE_TOLERANCE = pi/15. # in radians
 SPEED_RATIO = 0.1
 SPEED_START_ROTATION = 1 ## in mm/s
 DEBUG = True
+# Ptn pixel de l'image
+pts_image = np.array([
+    [0, 0],
+    [639, 0],
+    [0, 479],
+    [639, 479]
+], dtype=np.float32)
+
+ptn_image_cm = np.array([
+    [0, 0],
+    [9, 0.3],
+    [-13, 8],
+    [106, 173]
+], dtype=np.float32)
+
+# Points robot correspondants en cm 
+pts_robot = np.array([
+    [-49, 82],
+    [41, 85],
+    [-62, 162],
+    [57, 173]
+], dtype=np.float32)
+
 
 def inverse_kinematics(linear_speed, angular_speed) -> tuple[float, float]:
     v_droit  = linear_speed + (angular_speed * WHEEL_DISTANCE / 2)

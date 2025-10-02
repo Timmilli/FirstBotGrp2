@@ -99,28 +99,6 @@ print(f"width:{width}; height:{height}; fps:{fps}")
 
 pid = PID(1, 0.2, 0.1, setpoint=0)
 
-# Ptn pixel de l'image
-pts_image = np.array([
-    [0, 0],
-    [639, 0],
-    [0, 479],
-    [639, 479]
-], dtype=np.float32)
-
-ptn_image_cm = np.array([
-    [0, 0],
-    [9, 0.3],
-    [-13, 8],
-    [106, 173]
-], dtype=np.float32)
-
-# Points robot correspondants en cm 
-pts_robot = np.array([
-    [-49, 82],
-    [41, 85],
-    [-62, 162],
-    [57, 173]
-], dtype=np.float32)
 
 def exit_program():
     video_capture.release()
