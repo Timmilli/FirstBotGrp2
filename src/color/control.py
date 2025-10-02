@@ -2,6 +2,8 @@ from math import cos, sin, sqrt, atan2, pi
 from datetime import datetime
 from odom import direct_kinematics, tick_odom
 from pypot import dynamixel 
+import cv2
+import numpy as np
 
 wheel_distance = 159.40 ## in mm
 
@@ -66,3 +68,33 @@ def go_to_xya(x, y, theta):
         
         if (tolerance_time <= 0.):
             return
+        
+        
+# Ptn pixel de l'image
+pts_image = np.array([
+    [0, 0],
+    [639, 0],
+    [0, 479],
+    [639, 479]
+], dtype=np.float32)
+
+# Points robot correspondants en cm 
+pts_robot = np.array([
+    [4.9, 8.2],
+    [4.1, 8.5],
+    [6.2, 16.2],
+    [5.7, 17.3]
+], dtype=np.float32)
+
+H, status = cv2.findHomography(pts_image, pts_robot)
+
+def pixel_to_robot(u, v):
+    pixel = np.array([ [u, v] ], dtype=np.float32)
+    robot_point = cv2.perspectiveTransform(np.array([pixel]), H)
+    x_robot, y_robot = robot_point[0][0]
+    return x_robot, y_robot
+
+x, y = pixel_to_robot(320, 240)
+print(f"Pixel (320,240) correspond à position robot ({x:.2f}, {y:.2f})")
+
+
