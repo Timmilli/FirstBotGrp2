@@ -63,7 +63,7 @@ def go_to_xya(x, y, theta):
 
         real_v_droit = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([1]))
         real_v_gauche = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([2]))
-        (real_linear_speed, real_angular_speed) = direct_kinematics(0., 0.) #TODO: Replace zeros by read from motors
+        (real_linear_speed, real_angular_speed) = direct_kinematics(real_v_droit, real_v_gauche)
         dxw = real_linear_speed*cos(curr_theta+real_angular_speed)
         dyw = real_linear_speed*sin(curr_theta+real_angular_speed)
         
