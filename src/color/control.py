@@ -52,7 +52,8 @@ def go_to_xya(x, y, theta):
             print(f"wanting to go at linear_speed = {goal_linear_speed} and angular_speed = {goal_angular_speed}")
 
         (goal_v_droit, goal_v_gauche) = inverse_kinematics(goal_linear_speed, goal_angular_speed)
-        
+        (goal_v_droit, goal_v_gauche) = (max(600, goal_v_droit), max(600, goal_v_gauche))
+
         delta_time = start - datetime.now()
         
         dxl_io.set_moving_speed({1: goal_v_droit})
@@ -78,7 +79,8 @@ def go_to_xya(x, y, theta):
 def go_to_one_frame(x, y, dxlio):
     goal_linear_speed = SPEED_RATIO * sqrt(x**2 + y**2)
     goal_angular_speed = SPEED_RATIO * atan2(y, x)
-    return inverse_kinematics(goal_linear_speed, goal_angular_speed)
+    (goal_v_droit, goal_v_gauche) = inverse_kinematics(goal_linear_speed, goal_angular_speed)
+    return (max(600, goal_v_droit), max(600, goal_v_gauche))
 
 # Ptn pixel de l'image
 pts_image = np.array([
