@@ -6,9 +6,13 @@ from copy import deepcopy
 import argparse
 import sys
 import time
+import matplotlib.pyplot as plt
 
+from odom import WHEEL_DISTANCE
+from math import cos, sin, sqrt, atan2, pi
+from datetime import datetime
 from image_processing import next_color, process_frame_hsv, process_frame_rgb
-from control import pixel_to_robot, go_to_one_frame
+from control import pixel_to_robot, go_to_one_frame, pixel_to_world, rotation_speed_to_linear_speed,update_mapping
 
 parser = argparse.ArgumentParser(
     prog='Main file',
@@ -184,6 +188,12 @@ try:
             x_robot, y_robot = pixel_to_robot(320, 240)
             print(f"Pixel (320,240) → Robot ({x_robot:.2f}, {y_robot:.2f}) cm")
 
+        detected_pixels = [(absisse, (top_band+bot_band)/2)]  # Ligne détectée
+
+        # Met à jour la carte avec les points du monde
+        update_mapping(curr_x, curr_y, detected_pixels)
+
+        
 except KeyboardInterrupt:
     print("KeyboardInterrupt. Exiting...")
     exit_program()

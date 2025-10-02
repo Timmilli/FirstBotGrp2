@@ -4,6 +4,7 @@ from odom import direct_kinematics, tick_odom, WHEEL_DISTANCE
 from pypot import dynamixel 
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
 WHEEL_SIZE = 51.
 DIST_TOLERANCE = 5. # in mm
@@ -133,3 +134,36 @@ def pixel_to_world(u, v, curr_x, curr_y, curr_theta):
     y_world = curr_y + x_robot * sin(curr_theta) + y_robot * cos(curr_theta)
     return x_world, y_world
 
+
+# Initialisation matplotlib en mode interactif
+plt.ion()
+fig, ax = plt.subplots()
+robot_dot, = ax.plot([], [], 'ro', label='Robot')  # Point rouge pour le robot
+points_scatter = ax.scatter([], [], c='black', s=5, label='Points détectés')  # Objets / ligne
+ax.set_xlim(-100, 100)  # En cm, à ajuster
+ax.set_ylim(-100, 100)
+ax.set_aspect('equal')
+ax.legend()
+
+# Tes variables
+detected_world_points = []  # Liste de tuples (x, y) dans le monde
+
+# Dans ta boucle principale (remplace par tes valeurs réelles)
+def update_mapping(curr_x, curr_y, detected_pixels):
+    global detected_world_points
+
+    # Conversion des pixels détectés (par ex. ligne) en points du monde
+    for (u, v) in detected_pixels:
+        x_w, y_w = pixel_to_world(u, v, curr_x, curr_y, curr_theta)
+        detected_world_points.append((x_w, y_w))
+
+    # Mise à jour des points sur le graphe
+    if detected_world_points:
+        xs, ys = zip(*detected_world_points)
+        points_scatter.set_offsets(np.c_[xs, ys])
+
+    # Mise à jour position du robot
+    robot_dot.set_data([curr_x], [curr_y])
+
+    plt.draw()
+    plt.pause(0.01)
