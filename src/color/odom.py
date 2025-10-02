@@ -1,10 +1,10 @@
 from math import cos, sin
 
-wheel_distance = 159.40 # in mm
+WHEEL_DISTANCE = 159.40 # in mm
 
 def direct_kinematics(v_droit, v_gauche) -> tuple[float, float]:
     linear_speed = (v_droit + v_gauche) / 2
-    angular_speed = (v_droit - v_gauche) / wheel_distance
+    angular_speed = (v_droit - v_gauche) / WHEEL_DISTANCE
     return (linear_speed, angular_speed)
 
 def odom(linear_speed, angular_speed, delta_time) -> tuple[float, float, float]:
