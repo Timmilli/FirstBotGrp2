@@ -7,7 +7,8 @@ import argparse
 import sys
 import time
 
-from image_processing import next_color, process_frame_hsv, process_frame_rgb
+from image_processing import next_color, process_frame_hsv
+from image_processing_rgb import process_frame_rgb
 from control import pixel_to_robot, go_to_one_frame
 
 parser = argparse.ArgumentParser(
@@ -60,7 +61,7 @@ rgb_boundaries = [
     ([110, 90, 70], [130, 110, 90]),  # A brown tape (to be reworked on)
 ]
 
-color_string = [ "Yellow Tape", "Blue Tape", "Red Tape", "Maroon Tape"]
+color_string = ["Yellow Tape", "Blue Tape", "Red Tape", "Maroon Tape"]
 current_color = int(args.color[0])
 
 if RGB_USED:
@@ -89,7 +90,7 @@ if MOTOR_USED:
     else:
         dxl_io = pypot.dynamixel.DxlIO(ports[0])
         dxl_io.set_wheel_mode([1])
-        STANDARD_SPEED = 500 # values best between 300 and 700
+        STANDARD_SPEED = 500  # values best between 300 and 700
         print(
             f"Motors detected and used. Setting standard speed at {STANDARD_SPEED}.")
 
@@ -148,13 +149,13 @@ try:
             absisse, color_detected = process_frame_rgb(frame, dico)
         else:
             bypass = False
-            absisse, color_detected, other_color_detected, bypass = process_frame_hsv(frame, dico)
+            absisse, color_detected, other_color_detected, bypass = process_frame_hsv(
+                frame, dico)
             if bypass and MOTOR_USED:
                 # print(bypass)
                 dxl_io.set_moving_speed({1: -300})  # Degrees / s
                 dxl_io.set_moving_speed({2: 300})  # Degrees / s
                 time.sleep(0.05)
-
 
         v_mot_droit, v_mot_gauche = 0, 0
         if PID_USED:
@@ -168,14 +169,18 @@ try:
                 if not color_search:
                     next_color(dico)
 
-            v_mot_droit = STANDARD_SPEED - ((4/5)*STANDARD_SPEED*abs(speed)) + speed*STANDARD_SPEED
-            v_mot_gauche = STANDARD_SPEED - ((4/5)*STANDARD_SPEED*abs(speed)) - speed*STANDARD_SPEED
+            v_mot_droit = STANDARD_SPEED - \
+                ((4/5)*STANDARD_SPEED*abs(speed)) + speed*STANDARD_SPEED
+            v_mot_gauche = STANDARD_SPEED - \
+                ((4/5)*STANDARD_SPEED*abs(speed)) - speed*STANDARD_SPEED
             # print(round(speed, 2))
         else:
-            if not color_detected :
+            if not color_detected:
                 absisse = width/2
-            x_robot, y_robot = pixel_to_robot(absisse, 480 - (top_band+bot_band)/2)
-            v_mot_droit, v_mot_gauche = go_to_one_frame(y_robot, 20*(x_robot + 5), dxl_io)
+            x_robot, y_robot = pixel_to_robot(
+                absisse, 480 - (top_band+bot_band)/2)
+            v_mot_droit, v_mot_gauche = go_to_one_frame(
+                y_robot, 20*(x_robot + 5), dxl_io)
             # print(round(absisse, 2), (top_band+bot_band)/2, round(x_robot, 2), round(y_robot, 2), v_mot_droit, v_mot_gauche)
 
         # print(round(absisse, 2))
