@@ -123,7 +123,13 @@ def pixel_to_robot(u, v):
     x_robot, y_robot = robot_point[0][0]
     return x_robot, y_robot
 
+
 x, y = pixel_to_robot(320, 240)
 print(f"Pixel (320,240) correspond à position robot ({x:.2f}, {y:.2f})")
 
+def pixel_to_world(u, v, curr_x, curr_y, curr_theta):
+    x_robot, y_robot = pixel_to_robot (u,v)
+    x_world = curr_x + x_robot * cos(curr_theta) - y_robot * sin(curr_theta)
+    y_world = curr_y + x_robot * sin(curr_theta) + y_robot * cos(curr_theta)
+    return x_world, y_world
 
