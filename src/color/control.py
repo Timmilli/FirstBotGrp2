@@ -19,7 +19,7 @@ def inverse_kinematics(linear_speed, angular_speed) -> tuple[float, float]:
 
 def rotation_speed_to_linear_speed(rotation_speed) -> float: #in degres/s
     perimeter = 51*pi
-    return perimeter*rotation_speed/360
+    return perimeter*rotation_speed[0]/360
 
 def go_to_xya(x, y, theta):
     ports = dynamixel.get_available_ports()
@@ -61,8 +61,8 @@ def go_to_xya(x, y, theta):
          
         start = datetime.now()
 
-        real_v_droit =  rotation_speed_to_linear_speed(dxl_io.get_moving_speed(1))
-        real_v_gauche = rotation_speed_to_linear_speed(dxl_io.get_moving_speed(2))
+        real_v_droit = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([1]))
+        real_v_gauche = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([2]))
         (real_linear_speed, real_angular_speed) = direct_kinematics(0., 0.) #TODO: Replace zeros by read from motors
         dxw = real_linear_speed*cos(curr_theta+real_angular_speed)
         dyw = real_linear_speed*sin(curr_theta+real_angular_speed)
