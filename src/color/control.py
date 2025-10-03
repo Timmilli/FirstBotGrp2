@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import time
 
 WHEEL_SIZE = 51.
-DIST_TOLERANCE = 20. # in mm
+DIST_TOLERANCE = 5. # in mm
 ANGLE_TOLERANCE = pi/15. # in radians
 SPEED_RATIO = 5
 SPEED_START_ROTATION = 50 ## in mm/s
@@ -104,7 +104,6 @@ def go_to_xya(x, y, theta):
         angle = real_angular_speed * delta_time.microseconds/1_000_000
         dxw = norm*cos(curr_theta+angle)
         dyw = norm*sin(curr_theta+angle) 
-        # dyw = norm*sin(curr_theta+angle)/10 #TODO: Suppr the 10x (normalement) 
         print(f"real_v_droit = {real_v_droit}, real_v_gauche = {real_v_gauche}, real_linear_speed = {real_linear_speed}, real_angular_speed = {real_angular_speed}, norm = {norm}, angle = {angle}, dxw = {dxw}, dyw = {dyw}")
         print(f"deltatime = {delta_time.microseconds/1_000_000}\n")
         (prev_x, prev_y, prev_theta) = (curr_x, curr_y, curr_theta)
@@ -149,6 +148,130 @@ def go_to_xya(x, y, theta):
             curr_theta -= 2*pi
         elif curr_theta < -pi:
             curr_theta += 2*pi
+
+
+    dxl_io.set_moving_speed({1: 0})
+    dxl_io.set_moving_speed({2: 0})
+
+
+def go_to_xya_v2(x, y, theta):
+    ports = dynamixel.get_available_ports()
+    if not ports:
+        exit('No port')
+
+    dxl_io = dynamixel.DxlIO(ports[0])
+    dxl_io.set_wheel_mode([1])
+
+    (curr_x, curr_y, curr_theta) = (0., 0., 0.)
+    (prev_x, prev_y, prev_theta) = (None, None, None)
+    def curr_pos():
+        return (curr_x, curr_y, curr_theta)
+    def prev_pos():
+        return (prev_x, prev_y, prev_theta)
+    start = datetime.now()
+    delta_time = 0.
+    
+    def distance_to_dest_sqrd():
+        return (x-curr_x)**2 + (y-curr_y)**2
+    
+    def dest_from_robot():
+        dx_world = (x-curr_x)
+        dy_world = (y-curr_y)
+        dx_robot = dx_world*cos(curr_theta)+dy_world*sin(curr_theta)
+        dy_robot = (-dx_robot)*sin(curr_theta)+dy_world*cos(curr_theta)
+        return (dx_robot, dy_robot)
+    
+    def angle_to_dest():
+        (x, y) = dest_from_robot()
+        return atan2(x, y)
+    
+    def update_pos():
+        real_v_droit = -rotation_speed_to_linear_speed(dxl_io.get_moving_speed([1])[0])
+        real_v_gauche = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([2])[0])
+        (real_linear_speed, real_angular_speed) = direct_kinematics(real_v_droit, real_v_gauche)
+
+        if DEBUG:
+            print(f"real_v_droit = {real_v_droit} | real_v_gauche = {real_v_gauche}")
+            print(f"real_linear_speed = {real_linear_speed} | real_angular_speed = {real_angular_speed}")
+            print()
+            print()
+
+        (curr_x, curr_y, curr_theta) = tick_odom(prev_x, prev_y, prev_theta, real_linear_speed, real_angular_speed, delta_time)
+        if curr_theta > pi:
+            curr_theta -= 2*pi
+        elif curr_theta < -pi:
+            curr_theta += 2*pi
+        return (curr_x, curr_y, curr_theta)
+
+    print(f"Angle to dest = {angle_to_dest()}")
+    while angle_to_dest() > pi/8 or angle_to_dest() < -pi/8:
+        print(f"Angle to dest = {angle_to_dest()}")
+        speed = 100*angle_to_dest()
+        while abs(speed) < 50:
+            speed *= 1.1
+        while abs(speed) > 600:
+            speed *= 0.9
+
+        delta_time = (datetime.now() - start).microseconds/1_000_000
+
+        dxl_io.set_moving_speed({1: speed})
+        dxl_io.set_moving_speed({2: speed})
+
+        start = datetime.now()
+        time.sleep(0.1)
+
+        (prev_x, prev_y, prev_theta) = curr_pos()
+        (curr_x, curr_y, curr_theta) = update_pos()
+
+    while sqrt(distance_to_dest_sqrd()) > DIST_TOLERANCE:
+        goal_angular_speed = angle_to_dest()*2.
+        goal_linear_speed = abs(sqrt(distance_to_dest_sqrd()) * goal_angular_speed)
+        (goal_v_droit, goal_v_gauche) = inverse_kinematics(goal_linear_speed, goal_angular_speed)
+        while abs(goal_v_droit) > 600 or abs(goal_v_gauche) > 600:
+            goal_v_droit *= 0.9
+            goal_v_gauche *= 0.9
+        while (abs(goal_v_droit) < 10 or abs(goal_v_gauche) < 10):
+            goal_v_droit *= 1.1
+            goal_v_droit *= 1.1
+        if DEBUG:
+            print(f"Want to go to ({x}, {y}, {theta})")
+            print(f"Currently at  ({curr_x}, {curr_y}, {curr_theta})")
+            print(f"distance_to_dest_sqrd = {sqrt(distance_to_dest_sqrd())}")
+            print(f"goal_linear_speed = {goal_linear_speed} | goal_angular_speed = {goal_angular_speed}")
+            print(f"goal_v_droit = {goal_v_droit} | goal_v_gauche = {goal_v_gauche}")
+            print()
+
+        dxl_io.set_moving_speed({1: -goal_v_droit})
+        dxl_io.set_moving_speed({2: goal_v_gauche})
+        
+
+        delta_time = (datetime.now() - start).microseconds/1_000_000
+        time.sleep(0.1)
+        start = datetime.now()
+
+        (prev_x, prev_y, prev_theta) = curr_pos()
+        (curr_x, curr_y, curr_theta) = update_pos()
+
+    while abs(theta - curr_theta) > pi/16:
+        # print(f"Currently at {curr_x}, {curr_y}, {curr_theta}")
+        # print(f"Distances to target: {x - curr_x}, {y - curr_y}, {theta - curr_theta}")
+        delta = theta - curr_theta
+        speed = - 100*delta
+        while abs(speed) < 50:
+            speed *= 1.1
+        while abs(speed) > 600:
+            speed *= 0.9
+
+        delta_time = (datetime.now() - start).microseconds/1_000_000
+
+        dxl_io.set_moving_speed({1: speed})
+        dxl_io.set_moving_speed({2: speed})
+
+        start = datetime.now()
+        time.sleep(0.1)
+
+        (prev_x, prev_y, prev_theta) = curr_pos()
+        (curr_x, curr_y, curr_theta) = update_pos()
 
 
     dxl_io.set_moving_speed({1: 0})
