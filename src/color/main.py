@@ -29,6 +29,8 @@ parser.add_argument('-o', '--odom_used', action='store_true',
                     help='Using the odometry to map a path.')
 parser.add_argument('-map', '--mapping_used', action='store_false',
                     help='Defines if the mapping is activated.')
+parser.add_argument('-v', '--video_feedback', action='store_false',
+                    help='Defines if the video feedback is activated.')
 
 parser.add_argument('-col', '--color',
                     default=0, type=int,
@@ -76,6 +78,7 @@ BROWN_USED = args.brown_detection
 RGB_USED = args.rgb_used
 PID_USED = args.pid_used
 MAPPING_USED = args.mapping_used
+VIDEO_FEEDBACK = args.video_feedback
 
 
 # Coded in HSV
@@ -164,6 +167,7 @@ try:
         "COMPUTER_USED": COMPUTER_USED,
         "BROWN_USED": BROWN_USED,
         "RGB_USED": RGB_USED,
+        "VIDEO_FEEDBACK": VIDEO_FEEDBACK,
         "boundaries": boundaries,
         "lower": lower,
         "upper": upper,
@@ -256,3 +260,4 @@ except KeyboardInterrupt:
     print("KeyboardInterrupt. Exiting...")
     plot_trajectory(trajectory, color=True)
     exit_program()
+    
