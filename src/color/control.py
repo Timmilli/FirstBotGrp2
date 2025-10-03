@@ -175,7 +175,6 @@ def go_to_xya_v2(x, y, theta):
     dxl_io.set_wheel_mode([1])
 
     (curr_x, curr_y, curr_theta) = (0., 0., 0.)
-    (prev_x, prev_y, prev_theta) = (None, None, None)
 
     start = datetime.now()
     delta_time = 0.
@@ -211,9 +210,8 @@ def go_to_xya_v2(x, y, theta):
         start = datetime.now()
         time.sleep(0.1)
 
-        (prev_x, prev_y, prev_theta) = (curr_x, curr_y, curr_theta)
         (curr_x, curr_y, curr_theta) = odom_mapping(
-            prev_x, prev_y, prev_theta, dxl_io, delta_time)
+            curr_x, curr_y, curr_theta, dxl_io, delta_time)
 
     print(f"sqrt(distance_to_dest_sqrd()) = {sqrt(distance_to_dest_sqrd())}")
     while sqrt(distance_to_dest_sqrd()) > DIST_TOLERANCE:
@@ -243,9 +241,8 @@ def go_to_xya_v2(x, y, theta):
         time.sleep(0.1)
         start = datetime.now()
 
-        (prev_x, prev_y, prev_theta) = (curr_x, curr_y, curr_theta)
         (curr_x, curr_y, curr_theta) = odom_mapping(
-            prev_x, prev_y, prev_theta, dxl_io, delta_time)
+            curr_x, curr_y, curr_theta, dxl_io, delta_time)
 
     while abs(theta - curr_theta) > pi/16:
         # print(f"Currently at {curr_x}, {curr_y}, {curr_theta}")
@@ -265,9 +262,8 @@ def go_to_xya_v2(x, y, theta):
         start = datetime.now()
         time.sleep(0.1)
 
-        (prev_x, prev_y, prev_theta) = (curr_x, curr_y, curr_theta)
         (curr_x, curr_y, curr_theta) = odom_mapping(
-            prev_x, prev_y, prev_theta, dxl_io, delta_time)
+            curr_x, curr_y, curr_theta, dxl_io, delta_time)
 
     dxl_io.set_moving_speed({1: 0})
     dxl_io.set_moving_speed({2: 0})
