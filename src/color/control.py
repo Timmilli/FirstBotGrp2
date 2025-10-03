@@ -219,19 +219,15 @@ def go_to_xya_v2(x, y, theta):
 
     print(f"sqrt(distance_to_dest_sqrd()) = {sqrt(distance_to_dest_sqrd())}")
     while sqrt(distance_to_dest_sqrd()) > DIST_TOLERANCE:
-        goal_angular_speed = angle_to_dest()*2.
-        goal_linear_speed = abs(
-            sqrt(distance_to_dest_sqrd()) * goal_angular_speed)
-        if goal_angular_speed == 0:
-            goal_linear_speed = 600
-        (goal_v_droit, goal_v_gauche) = inverse_kinematics(
-            goal_linear_speed, goal_angular_speed)
+        goal_angular_speed = angle_to_dest() if abs(angle_to_dest()) > 0.5 else 0
+        goal_linear_speed = 600 if goal_angular_speed == 0 else abs(sqrt(distance_to_dest_sqrd()) * goal_angular_speed)
+        (goal_v_droit, goal_v_gauche) = inverse_kinematics(goal_linear_speed, goal_angular_speed)
+        while (abs(goal_v_droit) < 100 or abs(goal_v_gauche) < 100):
+            goal_v_droit *= 10
+            goal_v_gauche *= 10
         while abs(goal_v_droit) > 600 or abs(goal_v_gauche) > 600:
             goal_v_droit *= 0.9
             goal_v_gauche *= 0.9
-        while (abs(goal_v_droit) < 10 or abs(goal_v_gauche) < 10):
-            goal_v_droit *= 1.1
-            goal_v_droit *= 1.1
         if DEBUG:
             print(f"Want to go to ({x}, {y}, {theta})")
             print(f"Currently at  ({curr_x}, {curr_y}, {curr_theta})")
