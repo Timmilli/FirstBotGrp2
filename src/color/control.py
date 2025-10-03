@@ -328,9 +328,6 @@ def pixel_to_world(u, v, curr_x, curr_y, curr_theta):
     return x_world, y_world
 
 
-detected_world_points = []
-
-
 # Plots the trajectory traveled by the bot
 # trajectory is either shape(N,2) or shape(3,N,2)
 # The shape choice is determined by the color Boolean
