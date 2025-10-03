@@ -164,8 +164,8 @@ try:
         "color_string": color_string,
         "switch_ready": switch_ready
     }
-    speed = 0
-    color_search = False
+    differential_speed = 0
+    color_search_enable = False
     current_time = time.time()  # in milliseconds
     curr_x, curr_y, curr_theta = 0., 0., 0.
     while True:
@@ -174,7 +174,7 @@ try:
             print("Capture has failed. Exiting...")
             exit_program()
 
-        print(color_string[current_color])
+        # print(color_string[current_color])
         if RGB_USED:
             absisse, color_detected = process_frame_rgb(frame, dico)
         else:
@@ -186,32 +186,35 @@ try:
                 dxl_io.set_moving_speed({2: 300})  # Degrees / s
                 time.sleep(0.05)
 
+        if curr_x < 0 and curr_x > -30 and curr_y < 60 and curr_y > -60 and color_search_enable == True:
+            color_search_enable = False
+            next_color(dico)
+        if curr_x > 200:
+            color_search_enable = True
 
         v_mot_droit, v_mot_gauche = 0, 0
         if PID_USED:
             if color_detected:
-                speed = pid((absisse-width/2)/(width/2))
-                # color_search = False
+                differential_speed = pid((absisse-width/2)/(width/2))
+                # color_search_enable = False
             else:
-                speed = 0
+                if not color_search_enable:
+                    differential_speed = -0.2
+                else:
+                    differential_speed = 0
                 # if not other_color_detected:dv
-                #     color_search = True
-                # if not color_search:
-            if curr_x < 0 and curr_x > -0.03 and curr_y < 0.04 and curr_y > -0.04 and color_search == True:
-                color_search = False
-                next_color(dico)
-            if curr_x > 0.2:
-                color_search = True
+                #     color_search_enable = True
+                # if not color_search_enable:
 
-            v_mot_droit = STANDARD_SPEED - ((4/5)*STANDARD_SPEED*abs(speed)) + speed*STANDARD_SPEED
-            v_mot_gauche = STANDARD_SPEED - ((4/5)*STANDARD_SPEED*abs(speed)) - speed*STANDARD_SPEED
-            # print(round(speed, 2))
+            v_mot_droit = STANDARD_SPEED - ((4/5)*STANDARD_SPEED*abs(differential_speed)) + differential_speed*STANDARD_SPEED
+            v_mot_gauche = STANDARD_SPEED - ((4/5)*STANDARD_SPEED*abs(differential_speed)) - differential_speed*STANDARD_SPEED
+            # print(round(differential_speed, 2))
         else:
             if not color_detected :
                 absisse = width/2
             x_robot, y_robot = pixel_to_robot(absisse, 480 - (top_band+bot_band)/2)
             v_mot_droit, v_mot_gauche = go_to_one_frame(y_robot, 40*(x_robot + 5), dxl_io)
-            print(round(absisse, 2), (top_band+bot_band)/2, round(x_robot, 2), round(y_robot, 2), v_mot_droit, v_mot_gauche)
+            # print(round(absisse, 2), (top_band+bot_band)/2, round(x_robot, 2), round(y_robot, 2), v_mot_droit, v_mot_gauche)
 
         # print(round(absisse, 2))
 
@@ -230,7 +233,7 @@ try:
         delta_time = time.time() - current_time
         current_time = time.time()
         curr_x, curr_y, curr_theta = odom_mapping(curr_x, curr_y, curr_theta, dxl_io, delta_time)
-        print(f"Robot position: x={1000*curr_x:.2f} mm, y={1000*curr_y:.2f} mm, theta={curr_theta:.2f} rad")
+        print(f"Robot position: x={curr_x:.2f} mm, y={curr_y:.2f} mm, theta={curr_theta:.2f} rad, freq={1/delta_time:.2f} Hz")
 
 except KeyboardInterrupt:
     print("KeyboardInterrupt. Exiting...")
