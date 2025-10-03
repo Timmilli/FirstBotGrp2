@@ -7,7 +7,7 @@ import argparse
 import sys
 import time
 
-from image_processing import next_color, process_frame_hsv
+from brown_image_processing import next_color, process_frame_hsv
 from image_processing_rgb import process_frame_rgb
 from control import pixel_to_robot, go_to_one_frame
 
@@ -24,11 +24,13 @@ parser.add_argument('-r', '--rgb_used', action='store_true',
                     help='Defines if the RGB is used over the HSV.')
 parser.add_argument('-p', '--pid_used', action='store_true',
                     help='Use a simple PID as the motor control.')
+parser.add_argument('-v', '--video_rasp', action='store_true',
+                    help='Returns a video feedback while on the rasp.')
 
 parser.add_argument('-col', '--color', nargs=1,
-                    default=0, type=int,
+                    default=[0], type=int,
                     help='Defines the color of the line to follow.')
-parser.add_argument('-s', '--speed', nargs=1,
+parser.add_argument('-s', '--speed',
                     default=360, type=float,
                     help='Defines the standard speed of the wheels. Default is 360.')
 
@@ -39,9 +41,10 @@ COMPUTER_USED = args.computer_used
 BROWN_USED = args.brown_detection
 RGB_USED = args.rgb_used
 PID_USED = args.pid_used
+VIDEO_FEEDBACK = args.video_rasp
 
 print(
-    f"Motor used:{MOTOR_USED}; Computer used:{COMPUTER_USED}; Brown used:{BROWN_USED}; Hsv used:{RGB_USED}")
+    f"Motor used:{MOTOR_USED}; Computer used:{COMPUTER_USED}; Brown used:{BROWN_USED}; Hsv used:{not RGB_USED}")
 
 # Coded in HSV
 # Maroon has to be the last color
@@ -49,7 +52,9 @@ hsv_boundaries = [
     ([10, 80, 100], [40, 200, 255]),  # A yellow tape (to be reworked)
     ([90, 120, 200], [110, 255, 255]),  # A blue tape
     ([110, 100, 200], [180, 200, 255]),  # A red tape
-    ([0, 0, 60], [180, 90, 140])  # A maroon tape (to be reworked)
+    # A maroon tape (to be reworked)
+    (([140, 0, 150], [180, 150, 150]), ([0, 0, 56], [20, 160, 160]))
+    # (([147, 8, 156], [179, 140, 140]), ([0, 8, 56], [8, 140, 140]))  # A maroon tape (to be reworked)
 
 ]
 # Coded in BGR
@@ -73,10 +78,13 @@ lower, upper = boundaries[current_color]
 print(color_string[current_color])
 lower = np.array(lower, dtype="uint8")
 upper = np.array(upper, dtype="uint8")
-brown_lower, brown_upper = boundaries[-1]
-brown_lower = np.array(brown_lower, dtype="uint8")
-brown_upper = np.array(brown_upper, dtype="uint8")
-switch_ready = True
+brown_lower_low, brown_upper_low = boundaries[-1][0]
+brown_lower_high, brown_upper_high = boundaries[-1][1]
+brown_lower_low = np.array(brown_lower_low, dtype="uint8")
+brown_upper_low = np.array(brown_upper_low, dtype="uint8")
+brown_lower_high = np.array(brown_lower_high, dtype="uint8")
+brown_upper_high = np.array(brown_upper_high, dtype="uint8")
+switch_ready = False
 
 
 top_band = 400
@@ -95,7 +103,7 @@ if MOTOR_USED:
             f"Motors detected and used. Setting standard speed at {STANDARD_SPEED}.")
 
 
-video_capture = cv2.VideoCapture(0)
+video_capture = cv2.VideoCapture(0, cv2.CAP_V4L2)
 
 width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -123,15 +131,20 @@ try:
         "fps": fps,
         "top_band": top_band,
         "bot_band": bot_band,
+        "brown_top_band": top_band-20,
+        "brown_bot_band": bot_band+20,
         "MOTOR_USED": MOTOR_USED,
         "COMPUTER_USED": COMPUTER_USED,
         "BROWN_USED": BROWN_USED,
         "RGB_USED": RGB_USED,
+        "VIDEO_FEEDBACK": VIDEO_FEEDBACK,
         "boundaries": boundaries,
         "lower": lower,
         "upper": upper,
-        "brown_lower": brown_lower,
-        "brown_upper": brown_upper,
+        "brown_lower_low": brown_lower_low,
+        "brown_upper_low": brown_upper_low,
+        "brown_lower_high": brown_lower_high,
+        "brown_upper_high": brown_upper_high,
         "current_color": current_color,
         "color_string": color_string,
         "switch_ready": switch_ready
@@ -144,7 +157,7 @@ try:
             print("Capture has failed. Exiting...")
             exit_program()
 
-        print(color_string[current_color])
+        # print(color_string[current_color])
         if RGB_USED:
             absisse, color_detected = process_frame_rgb(frame, dico)
         else:
@@ -152,38 +165,34 @@ try:
             absisse, color_detected, other_color_detected, bypass = process_frame_hsv(
                 frame, dico)
             if bypass and MOTOR_USED:
-                # print(bypass)
-                dxl_io.set_moving_speed({1: -300})  # Degrees / s
-                dxl_io.set_moving_speed({2: 300})  # Degrees / s
+                dxl_io.set_moving_speed({1: -STANDARD_SPEED})  # Degrees / s
+                dxl_io.set_moving_speed({2: STANDARD_SPEED})  # Degrees / s
                 time.sleep(0.05)
 
-        v_mot_droit, v_mot_gauche = 0, 0
-        if PID_USED:
-            if color_detected:
-                speed = pid((absisse-width/2)/(width/2))
-                color_search = False
+        if MOTOR_USED:
+            v_mot_droit, v_mot_gauche = 0, 0
+            if PID_USED:
+                if color_detected:
+                    speed = pid((absisse-width/2)/(width/2))
+                    color_search = False
+                else:
+                    speed = 0
+                    # if not other_color_detected:
+                    #    color_search = True
+                    # if not color_search:
+                    #    next_color(dico)
+
+                v_mot_droit = STANDARD_SPEED - \
+                    ((4/5)*STANDARD_SPEED*abs(speed)) + speed*STANDARD_SPEED
+                v_mot_gauche = STANDARD_SPEED - \
+                    ((4/5)*STANDARD_SPEED*abs(speed)) - speed*STANDARD_SPEED
             else:
-                speed = 0
-                if not other_color_detected:
-                    color_search = True
-                if not color_search:
-                    next_color(dico)
-
-            v_mot_droit = STANDARD_SPEED - \
-                ((4/5)*STANDARD_SPEED*abs(speed)) + speed*STANDARD_SPEED
-            v_mot_gauche = STANDARD_SPEED - \
-                ((4/5)*STANDARD_SPEED*abs(speed)) - speed*STANDARD_SPEED
-            # print(round(speed, 2))
-        else:
-            if not color_detected:
-                absisse = width/2
-            x_robot, y_robot = pixel_to_robot(
-                absisse, 480 - (top_band+bot_band)/2)
-            v_mot_droit, v_mot_gauche = go_to_one_frame(
-                y_robot, 20*(x_robot + 5), dxl_io)
-            # print(round(absisse, 2), (top_band+bot_band)/2, round(x_robot, 2), round(y_robot, 2), v_mot_droit, v_mot_gauche)
-
-        # print(round(absisse, 2))
+                if not color_detected:
+                    absisse = width/2
+                x_robot, y_robot = pixel_to_robot(
+                    absisse, 480 - (top_band+bot_band)/2)
+                v_mot_droit, v_mot_gauche = go_to_one_frame(
+                    y_robot, 20*(x_robot + 5), dxl_io)
 
         if MOTOR_USED:
             dxl_io.set_moving_speed({1: -v_mot_droit})  # Degrees / s
@@ -193,7 +202,7 @@ try:
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 exit_program()
 
-        if COMPUTER_USED:
+        if COMPUTER_USED and MOTOR_USED:
             x_robot, y_robot = pixel_to_robot(320, 240)
             print(f"Pixel (320,240) → Robot ({x_robot:.2f}, {y_robot:.2f}) cm")
 

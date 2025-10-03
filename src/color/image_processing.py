@@ -13,7 +13,7 @@ def next_color(dico):
         dico["current_color"] += 1
     else:
         dico["current_color"] = 0
-    print("next", color_string[dico["current_color"]])
+    # print("next", color_string[dico["current_color"]])
     dico["lower"], dico["upper"] = dico["boundaries"][dico["current_color"]]
     dico["lower"] = np.array(dico["lower"], dtype="uint8")
     dico["upper"] = np.array(dico["upper"], dtype="uint8")
@@ -28,7 +28,7 @@ def coord_is_in_left(coord, left_bar):
 
 def coord_is_in_center(coord, left_bar, right_bar):
     x, y = coord
-    if right_bar <= x and x <= right_bar:
+    if left_bar <= x and x <= right_bar:
         return True
     return False
 
@@ -40,20 +40,19 @@ def coord_is_in_right(coord, right_bar):
     return False
 
 
-def process_frame_hsv(frame, dico):
-    if dico["COMPUTER_USED"]:
-        full_frame = deepcopy(frame)
-
-    # frame = frame[0:height, int(width/2)-5:int(width/2)+5]
+def process_frame_hsv(full_frame, dico):
     if not dico["COMPUTER_USED"]:
-        frame = frame[dico["top_band"]:dico["bot_band"], 0:dico["width"]]
+        # Keeping the whole frame for computer usage
+        frame = full_frame[dico["top_band"]:dico["bot_band"], 0:dico["width"]]
+    else:
+        frame = full_frame
 
     # Transform from RGB to HSV
     hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
     # Mask and output for color to be followed
     mask = cv2.inRange(hsv_frame, dico["lower"], dico["upper"])
-    if dico["COMPUTER_USED"]:
+    if dico["COMPUTER_USED"] or dico["VIDEO_FEEDBACK"]:
         output = cv2.bitwise_and(hsv_frame, hsv_frame, mask=mask)
     # Find all pixels detected in the mask
     coords = cv2.findNonZero(mask)
@@ -63,93 +62,53 @@ def process_frame_hsv(frame, dico):
     other_color_detected = False
     bypass = False
     if coords is not None:
-        # print("nb_coords ", len(coords))
         if len(coords) > 3500 and dico["current_color"] == 2:
             bypass = True
         color_detected = True
         for coord in coords:
             nb_center += coord[0][0]
-            if dico["COMPUTER_USED"]:
+            if dico["COMPUTER_USED"] or dico["VIDEO_FEEDBACK"]:
                 output = cv2.circle(output, coord[0], radius=0,
                                     color=(0, 0, 255), thickness=-1)
-        # print(nb_center/len(coords)/width - 0.5, ", speed = ", speed)
-
     else:
-        next_color(dico)
-        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv_frame, dico["lower"], dico["upper"])
-        coords = cv2.findNonZero(mask)
-        # if coords is not None:
-        #     if len(coords) > 300:
-        # other_color_detected = True
-
-        next_color(dico)
-        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv_frame, dico["lower"], dico["upper"])
-        coords = cv2.findNonZero(mask)
-        # if coords is not None:
-        #     if len(coords) > 300:
-        # other_color_detected = True
-
         coords = [0]
-        next_color(dico)
+        nb_center = 0
+
+    # Repeating the code for brown tape detection
 
     # Mask and output for color to be followed
     if dico["BROWN_USED"]:
-        brown_mask = cv2.inRange(
-            hsv_frame, dico["brown_lower"], dico["brown_upper"])
-        if dico["COMPUTER_USED"]:
-            brown_output = cv2.bitwise_and(
-                hsv_frame, hsv_frame, mask=brown_mask)
-        brown_coords = cv2.findNonZero(brown_mask)
-        brown_mask = cv2.inRange(
-            hsv_frame, dico["brown_lower"], dico["brown_upper"])
-        if dico["COMPUTER_USED"]:
-            brown_output = cv2.bitwise_and(
-                hsv_frame, hsv_frame, mask=brown_mask)
+        brown_hsv_frame = full_frame[dico["brown_top_band"]:dico["brown_bot_band"], int(
+            dico["width"]/3):int(dico["width"]*2/3)]
+        brown_mask_low = cv2.inRange(
+            brown_hsv_frame, dico["brown_lower_low"], dico["brown_upper_low"])
+        brown_mask_high = cv2.inRange(
+            brown_hsv_frame, dico["brown_lower_high"], dico["brown_upper_high"])
+        brown_mask = cv2.bitwise_or(brown_mask_low, brown_mask_high)
 
-        brown_nb_left = 0
-        brown_nb_center = 0
-        brown_nb_right = 0
+        brown_coords = cv2.findNonZero(brown_mask)
         if brown_coords is not None:
-            for coord in brown_coords:
-                # If the coordinate is in the first (left) third
-                if coord_is_in_left(coord[0], dico["width"]):
-                    # Show the coordinate as red
-                    if dico["COMPUTER_USED"]:
-                        output = cv2.circle(output, coord[0], radius=0,
-                                            color=(255, 255, 255), thickness=-1)
-                    # Add the pixel to the left counter
-                    brown_nb_left += 1
-                elif coord_is_in_center(coord[0], dico["width"]):
-                    if dico["COMPUTER_USED"]:
-                        output = cv2.circle(output, coord[0], radius=0,
-                                            color=(255, 255, 255), thickness=-1)
-                    brown_nb_center += 1
-                elif coord_is_in_right(coord[0], dico["width"]):
-                    if dico["COMPUTER_USED"]:
-                        output = cv2.circle(output, coord[0], radius=0,
-                                            color=(255, 255, 255), thickness=-1)
-                    brown_nb_right += 1
+            brown_nb_coords = len(brown_coords)
         else:
-            brown_coords = [0]
-        brown_center_percentage = brown_nb_center/len(brown_coords)
-        if not dico["switch_ready"] and brown_center_percentage < 0.2:
+            brown_nb_coords = 0
+        brown_center_percentage = brown_nb_coords / \
+            ((dico['width']/3)*abs(dico['brown_top_band']-dico['brown_bot_band']))
+        print(
+            f"{dico['current_color']} \
+            center:{brown_nb_coords} \
+           percentage:{brown_center_percentage}")
+        if not dico["switch_ready"] and brown_center_percentage < 0.7:
             dico["switch_ready"] = True
-        if dico["switch_ready"] and 0.7 <= brown_center_percentage and brown_center_percentage <= 1:
+        if dico["switch_ready"] and 0.6 <= brown_center_percentage:
             next_color(dico)
-            switch_ready = False
+            dico["switch_ready"] = False
 
     if dico["COMPUTER_USED"]:
-        # Visual line, not necessary for computing
-        cv2.rectangle(output, (int(dico["width"]/3), dico["bot_band"]),
-                      (int(dico["width"]*2/3), dico["top_band"]), (255, 0,  0), 2)
-
-        # cv2.rectangle(output, (int(width/2)-5, 0),
-        #              (int(width/2)+5, height), (0, 255, 0), 2)
-
         # Showing images
         cv2.imshow("images", np.hstack([frame, output]))
+    if dico["VIDEO_FEEDBACK"]:
+        # Showing images
+        cv2.imshow("images", output)
 
     if cv2.waitKey(1) & 0xFE == ord("n"):
         next_color(dico)
