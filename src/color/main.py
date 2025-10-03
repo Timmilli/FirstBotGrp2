@@ -53,6 +53,9 @@ MAPPING_USED = args.mapping_used
 VIDEO_FEEDBACK = args.video_feedback
 ODOM_USED = args.odom_used
 
+
+trajectory = []
+
 # If the bot is set to calculate the odometry
 if (ODOM_USED):
     ports = pypot.dynamixel.get_available_ports()
@@ -73,6 +76,7 @@ if (ODOM_USED):
             curr_x, curr_y, curr_theta, dxl_io, delta_time)
         print(
             f"Robot position: x={curr_x:.2f} mm, y={curr_y:.2f} mm, theta={curr_theta:.2f} rad")
+        trajectory.append((curr_x, curr_y))
 
         # Sleeping just enough to run at 30Hz
         time.sleep(max(0, 0.03-delta_time))  # 0.03sec is 30Hz
@@ -159,7 +163,13 @@ def exit_program():
             {1: 0})  # Degrees / s
         dxl_io.set_moving_speed(
             {2: 0})  # Degrees / s
-        dxl_io.disable_torque([1, 2])
+    if MAPPING_USED:
+        if len(trajectory) == 0:
+            print("Mapping was used but nothing to be plot.")
+        elif len(trajectory) == 3:
+            plot_trajectory(trajectory, color=True)
+        else:
+            plot_trajectory(trajectory)
     sys.exit()
 
 
@@ -263,6 +273,4 @@ try:
 
 except KeyboardInterrupt:
     print("KeyboardInterrupt. Exiting...")
-    if MAPPING_USED:
-        plot_trajectory(trajectory, color=True)
     exit_program()
