@@ -175,10 +175,7 @@ def go_to_xya_v2(x, y, theta):
     dxl_io.set_wheel_mode([1])
 
     (curr_x, curr_y, curr_theta) = (0., 0., 0.)
-    (prev_x, prev_y, prev_theta) = (None, None, None)
 
-    def curr_pos():
-        return (curr_x, curr_y, curr_theta)
     start = datetime.now()
     delta_time = 0.
 
@@ -213,25 +210,20 @@ def go_to_xya_v2(x, y, theta):
         start = datetime.now()
         time.sleep(0.1)
 
-        (prev_x, prev_y, prev_theta) = curr_pos()
         (curr_x, curr_y, curr_theta) = odom_mapping(
-            prev_x, prev_y, prev_theta, dxl_io, delta_time)
+            curr_x, curr_y, curr_theta, dxl_io, delta_time)
 
     print(f"sqrt(distance_to_dest_sqrd()) = {sqrt(distance_to_dest_sqrd())}")
     while sqrt(distance_to_dest_sqrd()) > DIST_TOLERANCE:
-        goal_angular_speed = angle_to_dest()*2.
-        goal_linear_speed = abs(
-            sqrt(distance_to_dest_sqrd()) * goal_angular_speed)
-        if goal_angular_speed == 0:
-            goal_linear_speed = 600
-        (goal_v_droit, goal_v_gauche) = inverse_kinematics(
-            goal_linear_speed, goal_angular_speed)
+        goal_angular_speed = angle_to_dest() if abs(angle_to_dest()) > 0.5 else 0
+        goal_linear_speed = 600 if goal_angular_speed == 0 else abs(sqrt(distance_to_dest_sqrd()) * goal_angular_speed)
+        (goal_v_droit, goal_v_gauche) = inverse_kinematics(goal_linear_speed, goal_angular_speed)
+        while (abs(goal_v_droit) < 100 or abs(goal_v_gauche) < 100):
+            goal_v_droit *= 10
+            goal_v_gauche *= 10
         while abs(goal_v_droit) > 600 or abs(goal_v_gauche) > 600:
             goal_v_droit *= 0.9
             goal_v_gauche *= 0.9
-        while (abs(goal_v_droit) < 10 or abs(goal_v_gauche) < 10):
-            goal_v_droit *= 1.1
-            goal_v_droit *= 1.1
         if DEBUG:
             print(f"Want to go to ({x}, {y}, {theta})")
             print(f"Currently at  ({curr_x}, {curr_y}, {curr_theta})")
@@ -249,9 +241,8 @@ def go_to_xya_v2(x, y, theta):
         time.sleep(0.1)
         start = datetime.now()
 
-        (prev_x, prev_y, prev_theta) = curr_pos()
         (curr_x, curr_y, curr_theta) = odom_mapping(
-            prev_x, prev_y, prev_theta, dxl_io, delta_time)
+            curr_x, curr_y, curr_theta, dxl_io, delta_time)
 
     while abs(theta - curr_theta) > pi/16:
         # print(f"Currently at {curr_x}, {curr_y}, {curr_theta}")
@@ -271,9 +262,8 @@ def go_to_xya_v2(x, y, theta):
         start = datetime.now()
         time.sleep(0.1)
 
-        (prev_x, prev_y, prev_theta) = curr_pos()
         (curr_x, curr_y, curr_theta) = odom_mapping(
-            prev_x, prev_y, prev_theta, dxl_io, delta_time)
+            curr_x, curr_y, curr_theta, dxl_io, delta_time)
 
     dxl_io.set_moving_speed({1: 0})
     dxl_io.set_moving_speed({2: 0})
@@ -332,6 +322,8 @@ def plot_trajectory(trajectory, color=False):
             colors = ['yellow', 'blue', 'red']
             plt.figure(figsize=(8, 8))
             for i in range(len(trajectory)):
+                if len(trajectory[i]) == 0:
+                    trajectory[i] = [(0, 0)]
                 xs, ys = zip(*trajectory[i])
                 plt.plot(xs, ys, '-o', color=colors[i], label="Trajectoire")
                 plt.plot(xs[-1], ys[-1], 'black', label="Position finale")
