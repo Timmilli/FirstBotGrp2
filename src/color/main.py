@@ -8,7 +8,7 @@ import sys
 import time
 
 from image_processing import next_color, process_frame_hsv, process_frame_rgb
-from control import go_to_xya, pixel_to_robot, go_to_one_frame, rotation_speed_to_linear_speed, current_position, plot_trajectory
+from control import go_to_xya, pixel_to_robot, go_to_one_frame, plot_trajectory
 from odom import odom_mapping
 
 parser = argparse.ArgumentParser(
@@ -230,23 +230,13 @@ try:
         if COMPUTER_USED:
             x_robot, y_robot = pixel_to_robot(320, 240)
             print(f"Pixel (320,240) → Robot ({x_robot:.2f}, {y_robot:.2f}) cm")
+
         delta_time = time.time() - current_time
         current_time = time.time()
-        # Lecture de la position courante
-        curr_x, curr_y, curr_theta= odom_mapping(curr_x, curr_y, curr_theta, dxl_io, delta_time)
-
-        print(f"[Position] x: {curr_x:.2f}, y: {curr_y:.2f}, θ: {curr_theta:.2f}")
-
+        curr_x, curr_y, curr_theta = odom_mapping(curr_x, curr_y, curr_theta, dxl_io, delta_time)
+        print(f"Robot position: x={curr_x:.2f} mm, y={curr_y:.2f} mm, theta={curr_theta:.2f} rad, freq={1/delta_time:.2f} Hz")
         trajectory.append((curr_x, curr_y))
 
-        # Pause courte pour limiter la charge CPU
-        time.sleep(0.02)
-
-        # Si tu utilises OpenCV, permettre la fermeture propre via 'q'
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            print("Fermeture demandée via 'q'")
-            break
-        
 except KeyboardInterrupt:
     print("KeyboardInterrupt. Exiting...")
     plot_trajectory(trajectory)
