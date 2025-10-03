@@ -8,7 +8,7 @@ import sys
 import time
 
 from image_processing import next_color, process_frame_hsv, process_frame_rgb
-from control import go_to_xya, pixel_to_robot, go_to_one_frame, plot_trajectory
+from control import go_to_xya, pixel_to_robot, go_to_one_frame, rotation_speed_to_linear_speed, plot_trajectory
 from odom import odom_mapping
 
 parser = argparse.ArgumentParser(
@@ -26,6 +26,8 @@ parser.add_argument('-p', '--pid_used', action='store_true',
                     help='Use a simple PID as the motor control.')
 parser.add_argument('-o', '--odom_used', action='store_true',
                     help='Using the odometry to map a path.')
+parser.add_argument('-map', '--mapping_used', action='store_false',
+                    help='Defines if the mapping is activated.')
 
 parser.add_argument('-col', '--color',
                     default=0, type=int,
@@ -39,7 +41,7 @@ parser.add_argument('-g', '--goto',
 
 args = parser.parse_args()
 
-if(args.odom_used):
+if (args.odom_used):
     ports = pypot.dynamixel.get_available_ports()
     if not ports:
         sys.exit("Motors are used but are not detected. Exiting...")
@@ -52,11 +54,16 @@ if(args.odom_used):
     while True:
         delta_time = time.time() - current_time
         current_time = time.time()
-        curr_x, curr_y, curr_theta = odom_mapping(curr_x, curr_y, curr_theta, dxl_io, delta_time)
-        print(f"Robot position: x={curr_x:.2f} mm, y={curr_y:.2f} mm, theta={curr_theta:.2f} rad")
+        curr_x, curr_y, curr_theta = odom_mapping(
+            curr_x, curr_y, curr_theta, dxl_io, delta_time)
+        print(
+            f"Robot position: x={curr_x:.2f} mm, y={curr_y:.2f} mm, theta={curr_theta:.2f} rad")
         # print(delta_time, curr_x, curr_y, curr_theta)
 
-if(args.goto != (0, 0, 0)):
+        # Pause courte pour limiter la charge CPU
+        time.sleep(max(0, 0.03-delta_time))  # 0.03sec is 30Hz
+
+if (args.goto != (0, 0, 0)):
     go_to_xya(args.goto[0], args.goto[1], args.goto[2])
     print("Arrived at destination. Exiting...")
     sys.exit()
@@ -67,9 +74,8 @@ COMPUTER_USED = args.computer_used
 BROWN_USED = args.brown_detection
 RGB_USED = args.rgb_used
 PID_USED = args.pid_used
+MAPPING_USED = args.mapping_used
 
-print(
-    f"Motor used:{MOTOR_USED}; Computer used:{COMPUTER_USED}; Brown used:{BROWN_USED}; Hsv used:{RGB_USED}")
 
 # Coded in HSV
 # Maroon has to be the last color
@@ -89,7 +95,7 @@ rgb_boundaries = [
     ([110, 90, 70], [130, 110, 90]),  # A brown tape (to be reworked on)
 ]
 
-color_string = [ "Yellow Tape", "Blue Tape", "Red Tape", "Maroon Tape"]
+color_string = ["Yellow Tape", "Blue Tape", "Red Tape", "Maroon Tape"]
 current_color = int(args.color)
 
 if RGB_USED:
@@ -110,6 +116,8 @@ switch_ready = True
 top_band = 400
 bot_band = 410
 
+print(
+    f"Motor used:{MOTOR_USED}; Computer used:{COMPUTER_USED}; Brown used:{BROWN_USED}; Hsv used:{RGB_USED}; Mapping used:{MAPPING_USED}; First color:{color_string[current_color]}")
 
 if MOTOR_USED:
     ports = pypot.dynamixel.get_available_ports()
@@ -180,62 +188,68 @@ try:
             absisse, color_detected = process_frame_rgb(frame, dico)
         else:
             bypass = False
-            absisse, color_detected, other_color_detected, bypass = process_frame_hsv(frame, dico)
+            absisse, color_detected, other_color_detected, bypass = process_frame_hsv(
+                frame, dico)
             if bypass and MOTOR_USED:
                 # print(bypass)
                 dxl_io.set_moving_speed({1: -300})  # Degrees / s
                 dxl_io.set_moving_speed({2: 300})  # Degrees / s
                 time.sleep(0.05)
 
-        if curr_x < 0 and curr_x > -30 and curr_y < 60 and curr_y > -60 and color_search_enable == True:
-            color_search_enable = False
-            next_color(dico)
-        if curr_x > 200:
-            color_search_enable = True
+        if MOTOR_USED:
+            if curr_x < 0 and curr_x > -30 and curr_y < 60 and curr_y > -60 and color_search_enable == True:
+                color_search_enable = False
+                next_color(dico)
+            if curr_x > 200:
+                color_search_enable = True
 
-        v_mot_droit, v_mot_gauche = 0, 0
-        if PID_USED:
-            if color_detected:
-                differential_speed = pid((absisse-width/2)/(width/2))
-                # color_search_enable = False
-            else:
-                if not color_search_enable:
-                    differential_speed = -0.2
+            v_mot_droit, v_mot_gauche = 0, 0
+            if PID_USED:
+                if color_detected:
+                    differential_speed = pid((absisse-width/2)/(width/2))
+                    # color_search_enable = False
                 else:
-                    differential_speed = 0
-                # if not other_color_detected:dv
-                #     color_search_enable = True
-                # if not color_search_enable:
+                    if not color_search_enable:
+                        differential_speed = -0.2
+                    else:
+                        differential_speed = 0
 
-            v_mot_droit = STANDARD_SPEED - ((4/5)*STANDARD_SPEED*abs(differential_speed)) + differential_speed*STANDARD_SPEED
-            v_mot_gauche = STANDARD_SPEED - ((4/5)*STANDARD_SPEED*abs(differential_speed)) - differential_speed*STANDARD_SPEED
-            # print(round(differential_speed, 2))
-        else:
-            if not color_detected :
-                absisse = width/2
-            x_robot, y_robot = pixel_to_robot(absisse, 480 - (top_band+bot_band)/2)
-            v_mot_droit, v_mot_gauche = go_to_one_frame(y_robot, 40*(x_robot + 5), dxl_io)
-            # print(round(absisse, 2), (top_band+bot_band)/2, round(x_robot, 2), round(y_robot, 2), v_mot_droit, v_mot_gauche)
-
-        # print(round(absisse, 2))
+                v_mot_droit = STANDARD_SPEED - \
+                    ((4/5)*STANDARD_SPEED*abs(differential_speed)) + \
+                    differential_speed*STANDARD_SPEED
+                v_mot_gauche = STANDARD_SPEED - \
+                    ((4/5)*STANDARD_SPEED*abs(differential_speed)) - \
+                    differential_speed*STANDARD_SPEED
+            else:
+                if not color_detected:
+                    absisse = width/2
+                x_robot, y_robot = pixel_to_robot(
+                    absisse, 480 - (top_band+bot_band)/2)
+                v_mot_droit, v_mot_gauche = go_to_one_frame(
+                    y_robot, 40*(x_robot + 5), dxl_io)
 
         if MOTOR_USED:
             dxl_io.set_moving_speed({1: -v_mot_droit})  # Degrees / s
             dxl_io.set_moving_speed({2: v_mot_gauche})  # Degrees / s
 
         if COMPUTER_USED:
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                exit_program()
-
-        if COMPUTER_USED:
             x_robot, y_robot = pixel_to_robot(320, 240)
             print(f"Pixel (320,240) → Robot ({x_robot:.2f}, {y_robot:.2f}) cm")
 
-        delta_time = time.time() - current_time
-        current_time = time.time()
-        curr_x, curr_y, curr_theta = odom_mapping(curr_x, curr_y, curr_theta, dxl_io, delta_time)
-        print(f"Robot position: x={curr_x:.2f} mm, y={curr_y:.2f} mm, theta={curr_theta:.2f} rad, freq={1/delta_time:.2f} Hz")
-        trajectory.append((curr_x, curr_y))
+        if MOTOR_USED:
+            delta_time = time.time() - current_time
+            current_time = time.time()
+            curr_x, curr_y, curr_theta = odom_mapping(
+                curr_x, curr_y, curr_theta, dxl_io, delta_time)
+            print(
+                f"Robot position: x={curr_x:.2f} mm, y={curr_y:.2f} mm, theta={curr_theta:.2f} rad, freq={1/delta_time:.2f} Hz")
+            if MAPPING_USED:
+                trajectory.append((curr_x, curr_y))
+
+        # Close opened windows and quit
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            print("Q pressed. Closing windows. Exiting...")
+            exit_program()
 
 except KeyboardInterrupt:
     print("KeyboardInterrupt. Exiting...")

@@ -41,10 +41,6 @@ def coord_is_in_right(coord, width):
 
 
 def process_frame_hsv(frame, dico):
-    if dico["COMPUTER_USED"]:
-        full_frame = deepcopy(frame)
-
-    # frame = frame[0:height, int(width/2)-5:int(width/2)+5]
     if not dico["COMPUTER_USED"]:
         frame = frame[dico["top_band"]:dico["bot_band"], 0:dico["width"]]
 
@@ -53,25 +49,16 @@ def process_frame_hsv(frame, dico):
 
     # Mask and output for color to be followed
     mask = cv2.inRange(hsv_frame, dico["lower"], dico["upper"])
-    if dico["BROWN_USED"]:
-        brown_mask = cv2.inRange(
-            hsv_frame, dico["brown_lower"], dico["brown_upper"])
     if dico["COMPUTER_USED"]:
         output = cv2.bitwise_and(hsv_frame, hsv_frame, mask=mask)
-        if dico["BROWN_USED"]:
-            brown_output = cv2.bitwise_and(
-                hsv_frame, hsv_frame, mask=brown_mask)
     # Find all pixels detected in the mask
     coords = cv2.findNonZero(mask)
-    if dico["BROWN_USED"]:
-        brown_coords = cv2.findNonZero(brown_mask)
     nb_center = 0
     # In case if nothing is detected
     color_detected = False
     other_color_detected = False
     bypass = False
     if coords is not None:
-        # print("nb_coords ", len(coords))
         if len(coords) > 3500 and dico["current_color"] == 2:
             bypass = True
         color_detected = True
@@ -80,36 +67,22 @@ def process_frame_hsv(frame, dico):
             if dico["COMPUTER_USED"]:
                 output = cv2.circle(output, coord[0], radius=0,
                                     color=(0, 0, 255), thickness=-1)
-        # print(nb_center/len(coords)/width - 0.5, ", speed = ", speed)
 
     else:
-        # next_color(dico)
-        # hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        # mask = cv2.inRange(hsv_frame, dico["lower"], dico["upper"])
-        # coords = cv2.findNonZero(mask)
-        # # if coords is not None:
-        # #     if len(coords) > 300:
-        #         # other_color_detected = True
-
-        # next_color(dico)
-        # hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        # mask = cv2.inRange(hsv_frame, dico["lower"], dico["upper"])
-        # coords = cv2.findNonZero(mask)
-        # # if coords is not None:
-        # #     if len(coords) > 300:
-        #         # other_color_detected = True
-        
         coords = [0]
-        # next_color(dico)
 
-    # Mask and output for color to be followed
     if dico["BROWN_USED"]:
-        brown_mask = cv2.inRange(
-            hsv_frame, dico["brown_lower"], dico["brown_upper"])
-        if dico["COMPUTER_USED"]:
+        # Mask and output for color to be followed
+        brown_mask_low = cv2.inRange(
+            hsv_frame, dico["brown_lower_low"], dico["brown_upper_low"])
+        brown_mask_high = cv2.inRange(
+            hsv_frame, dico["brown_lower_high"], dico["brown_upper_high"])
+        brown_mask = cv2.bitwise_or(brown_mask_low, brown_mask_high)
+        if dico["COMPUTER_USED"] or dico["VIDEO_FEEDBACK"]:
             brown_output = cv2.bitwise_and(
                 hsv_frame, hsv_frame, mask=brown_mask)
 
+        brown_coords = cv2.findNonZero(brown_mask)
         brown_nb_left = 0
         brown_nb_center = 0
         brown_nb_right = 0
@@ -147,12 +120,12 @@ def process_frame_hsv(frame, dico):
         cv2.rectangle(output, (int(dico["width"]/3), dico["bot_band"]),
                       (int(dico["width"]*2/3), dico["top_band"]), (255, 0,  0), 2)
 
-        # cv2.rectangle(output, (int(width/2)-5, 0),
-        #              (int(width/2)+5, height), (0, 255, 0), 2)
-
         # Showing images
         cv2.imshow("images", np.hstack([frame, output]))
 
+    if dico["VIDEO_FEEDBACK"]:
+        # Showing images
+        cv2.imshow("images", np.hstack([frame, output]))
     if cv2.waitKey(1) & 0xFE == ord("n"):
         next_color(dico)
 
@@ -191,11 +164,9 @@ def process_frame_rgb(frame, dico):
             if dico["COMPUTER_USED"]:
                 output = cv2.circle(output, coord[0], radius=0,
                                     color=(0, 0, 255), thickness=-1)
-        # print(nb_center/len(coords)/width - 0.5, ", speed = ", speed)
 
     else:
         coords = [0]
-        # print("color not detected, speed = ", speed)
 
     # Mask and output for color to be followed
     if dico["BROWN_USED"]:
@@ -244,9 +215,6 @@ def process_frame_rgb(frame, dico):
         # Visual line, not necessary for computing
         cv2.rectangle(output, (int(dico["width"]/3), dico["bot_band"]),
                       (int(dico["width"]*2/3), dico["top_band"]), (255, 0,  0), 2)
-
-        # cv2.rectangle(output, (int(width/2)-5, 0),
-        #              (int(width/2)+5, height), (0, 255, 0), 2)
 
         # Showing images
         cv2.imshow("images", np.hstack([frame, output]))
