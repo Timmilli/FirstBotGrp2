@@ -177,7 +177,7 @@ try:
     color_search_enable = False
     current_time = time.time()  # in milliseconds
     curr_x, curr_y, curr_theta = 0., 0., 0.
-    trajectory = []
+    trajectory = [[], [], []]
     while True:
         result, frame = video_capture.read()  # read frames from the video
         if result is False:
@@ -245,7 +245,7 @@ try:
             print(
                 f"Robot position: x={curr_x:.2f} mm, y={curr_y:.2f} mm, theta={curr_theta:.2f} rad, freq={1/delta_time:.2f} Hz")
             if MAPPING_USED:
-                trajectory.append((curr_x, curr_y))
+                trajectory[dico["current_color"]].append((curr_x, curr_y))
 
         # Close opened windows and quit
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -254,5 +254,5 @@ try:
 
 except KeyboardInterrupt:
     print("KeyboardInterrupt. Exiting...")
-    plot_trajectory(trajectory)
+    plot_trajectory(trajectory, color=True)
     exit_program()
