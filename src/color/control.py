@@ -177,8 +177,6 @@ def go_to_xya_v2(x, y, theta):
     (curr_x, curr_y, curr_theta) = (0., 0., 0.)
     (prev_x, prev_y, prev_theta) = (None, None, None)
 
-    def curr_pos():
-        return (curr_x, curr_y, curr_theta)
     start = datetime.now()
     delta_time = 0.
 
@@ -213,7 +211,7 @@ def go_to_xya_v2(x, y, theta):
         start = datetime.now()
         time.sleep(0.1)
 
-        (prev_x, prev_y, prev_theta) = curr_pos()
+        (prev_x, prev_y, prev_theta) = (curr_x, curr_y, curr_theta)
         (curr_x, curr_y, curr_theta) = odom_mapping(
             prev_x, prev_y, prev_theta, dxl_io, delta_time)
 
@@ -245,7 +243,7 @@ def go_to_xya_v2(x, y, theta):
         time.sleep(0.1)
         start = datetime.now()
 
-        (prev_x, prev_y, prev_theta) = curr_pos()
+        (prev_x, prev_y, prev_theta) = (curr_x, curr_y, curr_theta)
         (curr_x, curr_y, curr_theta) = odom_mapping(
             prev_x, prev_y, prev_theta, dxl_io, delta_time)
 
@@ -267,7 +265,7 @@ def go_to_xya_v2(x, y, theta):
         start = datetime.now()
         time.sleep(0.1)
 
-        (prev_x, prev_y, prev_theta) = curr_pos()
+        (prev_x, prev_y, prev_theta) = (curr_x, curr_y, curr_theta)
         (curr_x, curr_y, curr_theta) = odom_mapping(
             prev_x, prev_y, prev_theta, dxl_io, delta_time)
 
