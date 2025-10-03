@@ -7,7 +7,8 @@ import argparse
 import sys
 import time
 
-from image_processing import next_color, process_frame_hsv, process_frame_rgb
+from image_processing import next_color, process_frame_hsv
+from image_processing_rgb import process_frame_rgb
 from control import go_to_xya, pixel_to_robot, go_to_one_frame, rotation_speed_to_linear_speed, plot_trajectory
 from odom import odom_mapping
 
