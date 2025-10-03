@@ -1,0 +1,4 @@
+numpy==1.26.4
+opencv-python==4.12.0
+pypot_gregwar
+simple_pid==2.0.1
