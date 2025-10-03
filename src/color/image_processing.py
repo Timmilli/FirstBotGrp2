@@ -72,9 +72,9 @@ def process_frame_hsv(frame, dico):
     bypass = False
     if coords is not None:
         # print("nb_coords ", len(coords))
-        if len(coords) > 3500 and dico["current_color"] == 2:
-            bypass = True
-        color_detected = True
+        # if len(coords) > 3500 and dico["current_color"] == 2:
+        #     bypass = True
+        # color_detected = True
         for coord in coords:
             nb_center += coord[0][0]
             if dico["COMPUTER_USED"]:
@@ -83,24 +83,24 @@ def process_frame_hsv(frame, dico):
         # print(nb_center/len(coords)/width - 0.5, ", speed = ", speed)
 
     else:
-        next_color(dico)
-        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv_frame, dico["lower"], dico["upper"])
-        coords = cv2.findNonZero(mask)
-        # if coords is not None:
-        #     if len(coords) > 300:
-                # other_color_detected = True
+        # next_color(dico)
+        # hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        # mask = cv2.inRange(hsv_frame, dico["lower"], dico["upper"])
+        # coords = cv2.findNonZero(mask)
+        # # if coords is not None:
+        # #     if len(coords) > 300:
+        #         # other_color_detected = True
 
-        next_color(dico)
-        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv_frame, dico["lower"], dico["upper"])
-        coords = cv2.findNonZero(mask)
-        # if coords is not None:
-        #     if len(coords) > 300:
-                # other_color_detected = True
+        # next_color(dico)
+        # hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        # mask = cv2.inRange(hsv_frame, dico["lower"], dico["upper"])
+        # coords = cv2.findNonZero(mask)
+        # # if coords is not None:
+        # #     if len(coords) > 300:
+        #         # other_color_detected = True
         
         coords = [0]
-        next_color(dico)
+        # next_color(dico)
 
     # Mask and output for color to be followed
     if dico["BROWN_USED"]:

@@ -8,7 +8,7 @@ import sys
 import time
 
 from image_processing import next_color, process_frame_hsv, process_frame_rgb
-from control import pixel_to_robot, go_to_one_frame
+from control import go_to_xya, pixel_to_robot, go_to_one_frame
 from odom import odom_mapping
 
 parser = argparse.ArgumentParser(
@@ -33,7 +33,9 @@ parser.add_argument('-col', '--color',
 parser.add_argument('-s', '--speed',
                     default=360, type=int,
                     help='Defines the standard speed of the wheels. Default is 360.')
-
+parser.add_argument('-g', '--goto',
+                    default=(0, 0, 0), type=int, nargs=3,
+                    help='Goes to a specific position given by x (mm), y (mm), theta (rad).')
 
 args = parser.parse_args()
 
@@ -51,8 +53,13 @@ if(args.odom_used):
         delta_time = time.time() - current_time
         current_time = time.time()
         curr_x, curr_y, curr_theta = odom_mapping(curr_x, curr_y, curr_theta, dxl_io, delta_time)
-        print(f"Robot position: x={1000*curr_x:.2f} mm, y={1000*curr_y:.2f} mm, theta={curr_theta:.2f} rad")
+        print(f"Robot position: x={curr_x:.2f} mm, y={curr_y:.2f} mm, theta={curr_theta:.2f} rad")
         # print(delta_time, curr_x, curr_y, curr_theta)
+
+if(args.goto != (0, 0, 0)):
+    go_to_xya(args.goto[0], args.goto[1], args.goto[2])
+    print("Arrived at destination. Exiting...")
+    sys.exit()
 
 
 MOTOR_USED = args.motor_used
@@ -91,7 +98,7 @@ else:
     boundaries = hsv_boundaries
 
 lower, upper = boundaries[current_color]
-print(color_string[current_color])
+# print(color_string[current_color])
 lower = np.array(lower, dtype="uint8")
 upper = np.array(upper, dtype="uint8")
 brown_lower, brown_upper = boundaries[-1]
@@ -159,6 +166,8 @@ try:
     }
     speed = 0
     color_search = False
+    current_time = time.time()  # in milliseconds
+    curr_x, curr_y, curr_theta = 0., 0., 0.
     while True:
         result, frame = video_capture.read()  # read frames from the video
         if result is False:
@@ -182,13 +191,17 @@ try:
         if PID_USED:
             if color_detected:
                 speed = pid((absisse-width/2)/(width/2))
-                color_search = False
+                # color_search = False
             else:
                 speed = 0
-                if not other_color_detected:
-                    color_search = True
-                if not color_search:
-                    next_color(dico)
+                # if not other_color_detected:dv
+                #     color_search = True
+                # if not color_search:
+            if curr_x < 0 and curr_x > -0.03 and curr_y < 0.04 and curr_y > -0.04 and color_search == True:
+                color_search = False
+                next_color(dico)
+            if curr_x > 0.2:
+                color_search = True
 
             v_mot_droit = STANDARD_SPEED - ((4/5)*STANDARD_SPEED*abs(speed)) + speed*STANDARD_SPEED
             v_mot_gauche = STANDARD_SPEED - ((4/5)*STANDARD_SPEED*abs(speed)) - speed*STANDARD_SPEED
@@ -213,6 +226,11 @@ try:
         if COMPUTER_USED:
             x_robot, y_robot = pixel_to_robot(320, 240)
             print(f"Pixel (320,240) → Robot ({x_robot:.2f}, {y_robot:.2f}) cm")
+
+        delta_time = time.time() - current_time
+        current_time = time.time()
+        curr_x, curr_y, curr_theta = odom_mapping(curr_x, curr_y, curr_theta, dxl_io, delta_time)
+        print(f"Robot position: x={1000*curr_x:.2f} mm, y={1000*curr_y:.2f} mm, theta={curr_theta:.2f} rad")
 
 except KeyboardInterrupt:
     print("KeyboardInterrupt. Exiting...")
