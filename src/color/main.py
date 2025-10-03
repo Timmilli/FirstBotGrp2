@@ -44,11 +44,22 @@ parser.add_argument('-g', '--goto',
 
 args = parser.parse_args()
 
-if (args.odom_used):
+MOTOR_USED = args.motor_used
+COMPUTER_USED = args.computer_used
+BROWN_USED = args.brown_detection
+RGB_USED = args.rgb_used
+PID_USED = args.pid_used
+MAPPING_USED = args.mapping_used
+VIDEO_FEEDBACK = args.video_feedback
+ODOM_USED = args.odom_used
+
+# If the bot is set to calculate the odometry
+if (ODOM_USED):
     ports = pypot.dynamixel.get_available_ports()
     if not ports:
         sys.exit("Motors are used but are not detected. Exiting...")
     else:
+        # Sets the bot in passive mode
         dxl_io = pypot.dynamixel.DxlIO(ports[0])
         dxl_io.set_wheel_mode([1, 2])
         dxl_io.disable_torque([1, 2])
@@ -57,41 +68,33 @@ if (args.odom_used):
     while True:
         delta_time = time.time() - current_time
         current_time = time.time()
+        # Getting the current position of the bot in the world
         curr_x, curr_y, curr_theta = odom_mapping(
             curr_x, curr_y, curr_theta, dxl_io, delta_time)
         print(
             f"Robot position: x={curr_x:.2f} mm, y={curr_y:.2f} mm, theta={curr_theta:.2f} rad")
-        # print(delta_time, curr_x, curr_y, curr_theta)
 
-        # Pause courte pour limiter la charge CPU
+        # Sleeping just enough to run at 30Hz
         time.sleep(max(0, 0.03-delta_time))  # 0.03sec is 30Hz
 
+# If the bot is set to go to a position
 if (args.goto != (0, 0, 0)):
+    # It goes.
     go_to_xya(args.goto[0], args.goto[1], args.goto[2])
-    print("Arrived at destination. Exiting...")
-    sys.exit()
+    sys.exit("Arrived at destination. Exiting...")
 
 
-MOTOR_USED = args.motor_used
-COMPUTER_USED = args.computer_used
-BROWN_USED = args.brown_detection
-RGB_USED = args.rgb_used
-PID_USED = args.pid_used
-MAPPING_USED = args.mapping_used
-VIDEO_FEEDBACK = args.video_feedback
-
-
-# Coded in HSV
-# Maroon has to be the last color
+# Color codes in HSV
+# Brown has to be the last color
 hsv_boundaries = [
-    ([10, 80, 100], [40, 200, 255]),  # A yellow tape (to be reworked)
+    ([10, 80, 100], [40, 200, 255]),  # A yellow tape
     ([90, 120, 200], [110, 255, 255]),  # A blue tape
     ([110, 100, 200], [180, 200, 255]),  # A red tape
-    ([0, 0, 60], [180, 90, 140])  # A maroon tape (to be reworked)
+    (([140, 0, 150], [180, 150, 150]), ([0, 0, 56], [20, 160, 160]))  # A brown tape
 
 ]
-# Coded in BGR
-# Maroon has to be the last color
+# Color codes in BGR
+# Brown has to be the last color
 rgb_boundaries = [
     ([100, 170, 150], [150, 220, 200]),  # A yellow tape (to be reworked on)
     ([190, 150, 0], [255, 200, 50]),  # A blue tape
@@ -108,14 +111,12 @@ else:
     boundaries = hsv_boundaries
 
 lower, upper = boundaries[current_color]
-# print(color_string[current_color])
 lower = np.array(lower, dtype="uint8")
 upper = np.array(upper, dtype="uint8")
 brown_lower, brown_upper = boundaries[-1]
 brown_lower = np.array(brown_lower, dtype="uint8")
 brown_upper = np.array(brown_upper, dtype="uint8")
 switch_ready = True
-
 
 top_band = 400
 bot_band = 410
@@ -129,22 +130,27 @@ if MOTOR_USED:
         sys.exit("Motors are used but are not detected. Exiting...")
     else:
         dxl_io = pypot.dynamixel.DxlIO(ports[0])
-        dxl_io.set_wheel_mode([1])
+        dxl_io.set_wheel_mode([1, 2])
         STANDARD_SPEED = args.speed  # values best between 300 and 700
         print(
             f"Motors detected and used. Setting standard speed at {STANDARD_SPEED}.")
 
 
+# Starting the video capture
 video_capture = cv2.VideoCapture(0)
 
+# Getting the parameters of the capture
 width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fps = int(video_capture.get(cv2.CAP_PROP_FPS))
 print(f"width:{width}; height:{height}; fps:{fps}")
 
+
+# Setting the PID values
 pid = PID(2, 0.4, 0.1, setpoint=0)
 
 
+# Stops the motors and exits the program
 def exit_program():
     video_capture.release()
     cv2.destroyAllWindows()
@@ -153,6 +159,7 @@ def exit_program():
             {1: 0})  # Degrees / s
         dxl_io.set_moving_speed(
             {2: 0})  # Degrees / s
+        dxl_io.disable_torque([1, 2])
     sys.exit()
 
 
@@ -177,26 +184,25 @@ try:
         "color_string": color_string,
         "switch_ready": switch_ready
     }
+
     differential_speed = 0
     color_search_enable = False
-    current_time = time.time()  # in milliseconds
     curr_x, curr_y, curr_theta = 0., 0., 0.
     trajectory = [[], [], []]
+    current_time = time.time()  # in milliseconds
     while True:
         result, frame = video_capture.read()  # read frames from the video
         if result is False:
             print("Capture has failed. Exiting...")
             exit_program()
 
-        # print(color_string[current_color])
         if RGB_USED:
-            absisse, color_detected = process_frame_rgb(frame, dico)
+            abscissa, color_detected = process_frame_rgb(frame, dico)
         else:
             bypass = False
-            absisse, color_detected, other_color_detected, bypass = process_frame_hsv(
+            abscissa, color_detected, other_color_detected, bypass = process_frame_hsv(
                 frame, dico)
             if bypass and MOTOR_USED:
-                # print(bypass)
                 dxl_io.set_moving_speed({1: -300})  # Degrees / s
                 dxl_io.set_moving_speed({2: 300})  # Degrees / s
                 time.sleep(0.05)
@@ -211,8 +217,7 @@ try:
             v_mot_droit, v_mot_gauche = 0, 0
             if PID_USED:
                 if color_detected:
-                    differential_speed = pid((absisse-width/2)/(width/2))
-                    # color_search_enable = False
+                    differential_speed = pid((abscissa-width/2)/(width/2))
                 else:
                     if not color_search_enable:
                         differential_speed = -0.2
@@ -227,13 +232,12 @@ try:
                     differential_speed*STANDARD_SPEED
             else:
                 if not color_detected:
-                    absisse = width/2
+                    abscissa = width/2
                 x_robot, y_robot = pixel_to_robot(
-                    absisse, 480 - (top_band+bot_band)/2)
+                    abscissa, 480 - (top_band+bot_band)/2)
                 v_mot_droit, v_mot_gauche = go_to_one_frame(
                     y_robot, 40*(x_robot + 5), dxl_io)
 
-        if MOTOR_USED:
             dxl_io.set_moving_speed({1: -v_mot_droit})  # Degrees / s
             dxl_io.set_moving_speed({2: v_mot_gauche})  # Degrees / s
 
@@ -251,13 +255,14 @@ try:
             if MAPPING_USED:
                 trajectory[dico["current_color"]].append((curr_x, curr_y))
 
-        # Close opened windows and quit
+        # If Q is pressed
         if cv2.waitKey(1) & 0xFF == ord('q'):
+            # Quitting the program
             print("Q pressed. Closing windows. Exiting...")
             exit_program()
 
 except KeyboardInterrupt:
     print("KeyboardInterrupt. Exiting...")
-    plot_trajectory(trajectory, color=True)
+    if MAPPING_USED:
+        plot_trajectory(trajectory, color=True)
     exit_program()
-    
