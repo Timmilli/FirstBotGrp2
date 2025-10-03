@@ -322,6 +322,8 @@ def plot_trajectory(trajectory, color=False):
             colors = ['yellow', 'blue', 'red']
             plt.figure(figsize=(8, 8))
             for i in range(len(trajectory)):
+                if len(trajectory[i]) == 0:
+                    trajectory[i] = [(0, 0)]
                 xs, ys = zip(*trajectory[i])
                 plt.plot(xs, ys, '-o', color=colors[i], label="Trajectoire")
                 plt.plot(xs[-1], ys[-1], 'black', label="Position finale")
