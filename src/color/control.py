@@ -1,6 +1,6 @@
 from math import cos, sin, sqrt, atan2, pi
 from datetime import datetime
-from odom import direct_kinematics, tick_odom, WHEEL_DISTANCE
+from odom import direct_kinematics, tick_odom, odom_mapping, WHEEL_DISTANCE
 from pypot import dynamixel 
 import cv2
 import numpy as np
@@ -166,8 +166,6 @@ def go_to_xya_v2(x, y, theta):
     (prev_x, prev_y, prev_theta) = (None, None, None)
     def curr_pos():
         return (curr_x, curr_y, curr_theta)
-    def prev_pos():
-        return (prev_x, prev_y, prev_theta)
     start = datetime.now()
     delta_time = 0.
     
@@ -183,25 +181,8 @@ def go_to_xya_v2(x, y, theta):
     
     def angle_to_dest():
         (x, y) = dest_from_robot()
-        return atan2(x, y)
+        return atan2(y, x)
     
-    def update_pos():
-        real_v_droit = -rotation_speed_to_linear_speed(dxl_io.get_moving_speed([1])[0])
-        real_v_gauche = rotation_speed_to_linear_speed(dxl_io.get_moving_speed([2])[0])
-        (real_linear_speed, real_angular_speed) = direct_kinematics(real_v_droit, real_v_gauche)
-
-        if DEBUG:
-            print(f"real_v_droit = {real_v_droit} | real_v_gauche = {real_v_gauche}")
-            print(f"real_linear_speed = {real_linear_speed} | real_angular_speed = {real_angular_speed}")
-            print()
-            print()
-
-        (curr_x, curr_y, curr_theta) = tick_odom(prev_x, prev_y, prev_theta, real_linear_speed, real_angular_speed, delta_time)
-        if curr_theta > pi:
-            curr_theta -= 2*pi
-        elif curr_theta < -pi:
-            curr_theta += 2*pi
-        return (curr_x, curr_y, curr_theta)
 
     print(f"Angle to dest = {angle_to_dest()}")
     while angle_to_dest() > pi/8 or angle_to_dest() < -pi/8:
@@ -221,11 +202,14 @@ def go_to_xya_v2(x, y, theta):
         time.sleep(0.1)
 
         (prev_x, prev_y, prev_theta) = curr_pos()
-        (curr_x, curr_y, curr_theta) = update_pos()
+        (curr_x, curr_y, curr_theta) = odom_mapping(prev_x, prev_y, prev_theta, dxl_io, delta_time)
 
+    print(f"sqrt(distance_to_dest_sqrd()) = {sqrt(distance_to_dest_sqrd())}")
     while sqrt(distance_to_dest_sqrd()) > DIST_TOLERANCE:
         goal_angular_speed = angle_to_dest()*2.
         goal_linear_speed = abs(sqrt(distance_to_dest_sqrd()) * goal_angular_speed)
+        if goal_angular_speed == 0:
+            goal_linear_speed = 600
         (goal_v_droit, goal_v_gauche) = inverse_kinematics(goal_linear_speed, goal_angular_speed)
         while abs(goal_v_droit) > 600 or abs(goal_v_gauche) > 600:
             goal_v_droit *= 0.9
@@ -250,7 +234,7 @@ def go_to_xya_v2(x, y, theta):
         start = datetime.now()
 
         (prev_x, prev_y, prev_theta) = curr_pos()
-        (curr_x, curr_y, curr_theta) = update_pos()
+        (curr_x, curr_y, curr_theta) = odom_mapping(prev_x, prev_y, prev_theta, dxl_io, delta_time)
 
     while abs(theta - curr_theta) > pi/16:
         # print(f"Currently at {curr_x}, {curr_y}, {curr_theta}")
@@ -271,7 +255,7 @@ def go_to_xya_v2(x, y, theta):
         time.sleep(0.1)
 
         (prev_x, prev_y, prev_theta) = curr_pos()
-        (curr_x, curr_y, curr_theta) = update_pos()
+        (curr_x, curr_y, curr_theta) = odom_mapping(prev_x, prev_y, prev_theta, dxl_io, delta_time)
 
 
     dxl_io.set_moving_speed({1: 0})
