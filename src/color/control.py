@@ -12,7 +12,8 @@ DIST_TOLERANCE = 5.  # in mm
 ANGLE_TOLERANCE = pi/15.  # in radians
 SPEED_RATIO = 5
 SPEED_START_ROTATION = 50  # in mm/s
-DEBUG = True
+DEBUG = False
+
 # Ptn pixel de l'image
 pts_image = np.array([
     [0, 479],
@@ -31,17 +32,24 @@ pts_robot = np.array([
 ], dtype=np.float32)
 
 
+# Calculates the inverse kinematic of the bot
+# Takes the linear and angular speeds of the bot
+# and returns the speed of both motors
 def inverse_kinematics(linear_speed, angular_speed) -> tuple[float, float]:
     v_droit = linear_speed + (angular_speed * WHEEL_DISTANCE / 2)
     v_gauche = linear_speed - (angular_speed * WHEEL_DISTANCE / 2)
     return (v_droit, v_gauche)
 
 
+# Calculates the linear speed from a rotational speed
 def rotation_speed_to_linear_speed(rotation_speed) -> float:  # in degres/s
     perimeter = 51*pi
     return perimeter*rotation_speed/360
 
 
+# Goes to to the world point (x,y) with the orientation theta
+# x, y are in millimeters
+# theta in radian
 def go_to_xya(x, y, theta):
     y = -y
     ports = dynamixel.get_available_ports()
@@ -125,6 +133,7 @@ def go_to_xya(x, y, theta):
         if (abs(x - curr_x) < DIST_TOLERANCE and abs(y - curr_y) < DIST_TOLERANCE):
             tolerance_time -= delta_time.microseconds
 
+    # While the bot doesn't have a correct orientation
     while abs(theta - curr_theta) > pi/16:
         print(f"Currently at {curr_x}, {curr_y}, {curr_theta}")
         print(
@@ -166,6 +175,10 @@ def go_to_xya(x, y, theta):
     dxl_io.set_moving_speed({2: 0})
 
 
+# Goes to to the world point (x,y) with the orientation theta,
+# but using another strategy
+# x, y are in millimeters
+# theta in radian
 def go_to_xya_v2(x, y, theta):
     ports = dynamixel.get_available_ports()
     if not ports:
@@ -179,9 +192,11 @@ def go_to_xya_v2(x, y, theta):
     start = datetime.now()
     delta_time = 0.
 
+    # Returns the squared distance to the destination
     def distance_to_dest_sqrd():
         return (x-curr_x)**2 + (y-curr_y)**2
 
+    # Returns the distance of the target from the bot
     def dest_from_robot():
         dx_world = (x-curr_x)
         dy_world = (y-curr_y)
@@ -189,10 +204,12 @@ def go_to_xya_v2(x, y, theta):
         dy_robot = (-dx_robot)*sin(curr_theta)+dy_world*cos(curr_theta)
         return (dx_robot, dy_robot)
 
+    # Returns the angle between the target and the bot orientation
     def angle_to_dest():
         (x, y) = dest_from_robot()
         return atan2(y, x)
 
+    # While the robot is neither facing or backing the target
     print(f"Angle to dest = {angle_to_dest()}")
     while angle_to_dest() > pi/8 or angle_to_dest() < -pi/8:
         print(f"Angle to dest = {angle_to_dest()}")
@@ -213,11 +230,14 @@ def go_to_xya_v2(x, y, theta):
         (curr_x, curr_y, curr_theta) = odom_mapping(
             curr_x, curr_y, curr_theta, dxl_io, delta_time)
 
+    # While the robot is too far from the target
     print(f"sqrt(distance_to_dest_sqrd()) = {sqrt(distance_to_dest_sqrd())}")
     while sqrt(distance_to_dest_sqrd()) > DIST_TOLERANCE:
         goal_angular_speed = angle_to_dest() if abs(angle_to_dest()) > 0.5 else 0
-        goal_linear_speed = 600 if goal_angular_speed == 0 else abs(sqrt(distance_to_dest_sqrd()) * goal_angular_speed)
-        (goal_v_droit, goal_v_gauche) = inverse_kinematics(goal_linear_speed, goal_angular_speed)
+        goal_linear_speed = 600 if goal_angular_speed == 0 else abs(
+            sqrt(distance_to_dest_sqrd()) * goal_angular_speed)
+        (goal_v_droit, goal_v_gauche) = inverse_kinematics(
+            goal_linear_speed, goal_angular_speed)
         while (abs(goal_v_droit) < 100 or abs(goal_v_gauche) < 100):
             goal_v_droit *= 10
             goal_v_gauche *= 10
@@ -244,9 +264,8 @@ def go_to_xya_v2(x, y, theta):
         (curr_x, curr_y, curr_theta) = odom_mapping(
             curr_x, curr_y, curr_theta, dxl_io, delta_time)
 
+    # While the robot doesn't have a correct orientation
     while abs(theta - curr_theta) > pi/16:
-        # print(f"Currently at {curr_x}, {curr_y}, {curr_theta}")
-        # print(f"Distances to target: {x - curr_x}, {y - curr_y}, {theta - curr_theta}")
         delta = theta - curr_theta
         speed = - 100*delta
         while abs(speed) < 50:
@@ -269,6 +288,8 @@ def go_to_xya_v2(x, y, theta):
     dxl_io.set_moving_speed({2: 0})
 
 
+# Calculates the go_to function for a single frame
+# Returns the target speed of both motors
 def go_to_one_frame(x, y, dxlio):
     y = -y
     goal_linear_speed = SPEED_RATIO * sqrt(x**2 + y**2)
@@ -290,6 +311,7 @@ pts_image = np.array([
 ], dtype=np.float32)
 
 
+# Calculates the position of a pixel on the frame but in the bot view
 def pixel_to_robot(u, v):
     H, status = cv2.findHomography(pts_image, pts_robot)
     pixel = np.array([[u, v]], dtype=np.float32)
@@ -298,10 +320,7 @@ def pixel_to_robot(u, v):
     return x_robot, y_robot
 
 
-x, y = pixel_to_robot(320, 240)
-print(f"Pixel (320,240) correspond à position robot ({x:.2f}, {y:.2f})")
-
-
+# Calculates the position of a pixel on the frame but in the world view
 def pixel_to_world(u, v, curr_x, curr_y, curr_theta):
     x_robot, y_robot = pixel_to_robot(u, v)
     x_world = curr_x + x_robot * cos(curr_theta) - y_robot * sin(curr_theta)
@@ -312,9 +331,12 @@ def pixel_to_world(u, v, curr_x, curr_y, curr_theta):
 detected_world_points = []
 
 
+# Plots the trajectory traveled by the bot
+# trajectory is either shape(N,2) or shape(3,N,2)
+# The shape choice is determined by the color Boolean
 def plot_trajectory(trajectory, color=False):
     if not trajectory:
-        print("Pas de trajectoire à afficher.")
+        print("There is no trajectory to plot.")
         return
 
     match color:
@@ -333,8 +355,8 @@ def plot_trajectory(trajectory, color=False):
             plt.axis('equal')
             plt.grid(True)
             plt.legend()
-            plt.savefig("trajectoire_robot.png")
-            print("Trajectoire sauvegardée dans 'trajectoire_robot.png'")
+            plt.savefig("bot_trajectory.png")
+            print("Trajectory saved in 'bot_trajectory.png'")
             plt.show()
 
         case False:
@@ -348,6 +370,6 @@ def plot_trajectory(trajectory, color=False):
             plt.axis('equal')
             plt.grid(True)
             plt.legend()
-            plt.savefig("trajectoire_robot.png")
-            print("Trajectoire sauvegardée dans 'trajectoire_robot.png'")
+            plt.savefig("bot_trajectory.png")
+            print("Trajectory saved in 'bot_trajectory.png'")
             plt.show()

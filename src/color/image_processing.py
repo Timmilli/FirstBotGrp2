@@ -14,7 +14,6 @@ def next_color(dico):
         dico["current_color"] += 1
     else:
         dico["current_color"] = 0
-    print("next", color_string[dico["current_color"]])
     dico["lower"], dico["upper"] = dico["boundaries"][dico["current_color"]]
     dico["lower"] = np.array(dico["lower"], dtype="uint8")
     dico["upper"] = np.array(dico["upper"], dtype="uint8")
